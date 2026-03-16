@@ -1,0 +1,36 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Credentials
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+api_keys.env
+secrets.json
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Data files
+data/
+*.parquet
+*.pkl
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+.next/
+
+# OS
+.DS_Store
+Thumbs.db
