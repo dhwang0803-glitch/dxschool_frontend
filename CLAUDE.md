@@ -247,3 +247,77 @@ PGPASSWORD=실제비밀번호 psql -h 실제IP ...
 ```
 
 **위반 시**: 커밋 중단, 즉시 수정 후 재커밋
+
+---
+
+## 🌿 브랜치 생성 및 PR 규칙 (모든 브랜치 적용)
+
+상세 절차 → [`.claude/commands/PR-report.md`](.claude/commands/PR-report.md)
+
+### 브랜치 기본 규칙
+
+1. **main에서 분기** — 브랜치 생성 전 반드시 `git checkout main` 후 생성
+2. **다른 브랜치 파일 건드리지 않기** — 현재 브랜치 폴더 외 다른 폴더 절대 스테이징 금지
+3. **push 전 사용자 확인** — 명시적 요청 전 `git push` 금지
+4. **보안 점검** — 커밋 전 아래 항목 스캔 필수
+
+### 커밋 전 보안 점검 (Frontend 기준)
+
+```bash
+# 하드코딩된 자격증명 탐지
+git diff | grep -E "(password|secret|api_key|token|host)\s*=\s*['\"][^'\"]{4,}"
+```
+
+| 점검 항목 | 기준 |
+|-----------|------|
+| 하드코딩된 API 키·토큰 | 소스 코드에 직접 기재 금지 |
+| `.env` 파일 포함 여부 | `.gitignore`에 `.env` 있는지 확인 |
+| `data/` 포함 여부 | `.gitignore`에 `data/` 있는지 확인 |
+
+### 절대 금지 규칙
+
+1. `git push origin main` — main 브랜치 직접 push 금지
+2. PR 없이 main에 직접 merge 금지
+3. 다른 브랜치 폴더 파일을 현재 브랜치 커밋에 포함 금지
+4. 요청하지 않은 파일을 추가로 커밋·push 금지
+
+**사용자가 명시적으로 "push해줘", "merge해줘"라고 말하기 전까지 위 규칙 유효.**
+
+---
+
+## 🎨 Frontend CSS 폴리쉬 규칙 (Frontend 브랜치 적용)
+
+상세 가이드 → [`docs/UI_POLISH_GUIDE.md`](docs/UI_POLISH_GUIDE.md)
+
+### 레이아웃 프레임 변경 금지 (FROZEN)
+
+현재 CSS 작업은 **단일 컴포넌트 디자인(버튼, 슬라이더 등 인터랙티브 요소)만** 변경한다.
+아래 항목은 지시 전까지 절대 수정하지 않는다.
+
+| 컴포넌트 | 고정 항목 | 고정 값 |
+|----------|-----------|---------|
+| `PosterCard` | 카드 크기 | `w-32 h-48` |
+| `WatchingCard` | 카드 크기 | `w-36 h-24` |
+| `HeroBanner` | 배너 높이 | `h-[480px]` |
+| `HeroBanner` | 텍스트 패딩 | `pb-16 px-10` |
+| `HeroBanner` | 타이틀 크기 | `text-5xl` |
+| `GNB` | 높이 | `h-14` |
+| `GNB` | 최대 너비 | `max-w-screen-xl` |
+| `HorizontalSection` | 섹션 여백·패딩 | `mt-8 px-6 gap-3` |
+
+### 변경 허용 항목
+
+- 버튼 hover/active 상태, 색상, 라운드
+- 슬라이드 인디케이터 두께·색상·애니메이션
+- 진행바(WatchingCard) 색상·두께
+- 카드 hover 효과 (brightness, shadow, ring — 크기 변경 X)
+- 텍스트 색상·웨이트 (크기 변경 X)
+
+### 수정 전 필수 체크
+
+```
+CSS 수정 시 →
+  w-*, h-* 수치 변경 없음 확인 →
+    px-*, py-*, gap-*, mt-*, mb-* 레이아웃 간격 변경 없음 확인 →
+      브라우저에서 레이아웃 깨짐 없음 확인
+```
