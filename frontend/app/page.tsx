@@ -23,7 +23,7 @@ function WatchingSection() {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <h2 className="text-white font-semibold text-lg mb-3 px-6">이어보기</h2>
+      <h2 className="text-white font-semibold text-xl mb-3 px-6">이어보기</h2>
       <div className="relative">
         <button
           onClick={() => scroll('left')}

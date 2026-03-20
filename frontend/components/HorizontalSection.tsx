@@ -23,7 +23,7 @@ export default function HorizontalSection({ title, vods }: Props) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <h2 className="text-white font-semibold text-lg mb-3 px-6">{title}</h2>
+      <h2 className="text-white font-semibold text-xl mb-3 px-6">{title}</h2>
       <div className="relative">
         {/* 왼쪽 화살표 */}
         <button
