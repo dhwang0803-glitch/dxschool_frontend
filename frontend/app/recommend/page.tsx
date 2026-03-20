@@ -1,8 +1,69 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import PosterCard from '@/components/PosterCard'
 import { smartRecommendPatterns } from '@/lib/mockData'
+
+type Pattern = typeof smartRecommendPatterns[0]
+
+function PatternSection({ pattern, active }: { pattern: Pattern; active: boolean }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [hovered, setHovered] = useState(false)
+
+  const scroll = (dir: 'left' | 'right') => {
+    if (!scrollRef.current) return
+    scrollRef.current.scrollBy({ left: dir === 'right' ? 400 : -400, behavior: 'smooth' })
+  }
+
+  return (
+    <section
+      className={`relative ${active ? '' : 'opacity-40'}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="px-6 mb-3">
+        <div className="flex items-center gap-2">
+          <span className="bg-blue-500/20 text-blue-400 text-xs font-semibold px-2 py-0.5 rounded-full">
+            패턴 {pattern.pattern_rank}
+          </span>
+        </div>
+        <h3 className="text-white font-semibold text-base mt-1">{pattern.pattern_reason}</h3>
+      </div>
+      <div className="relative">
+        <button
+          onClick={() => scroll('left')}
+          className={`absolute left-0 top-0 bottom-2 z-10 w-12 flex items-center justify-center
+            bg-gradient-to-r from-black/80 to-transparent
+            transition-opacity duration-200 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        <div
+          ref={scrollRef}
+          className="flex gap-3 overflow-x-auto px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {pattern.vod_list.map(vod => (
+            <PosterCard key={vod.series_id} vod={vod} />
+          ))}
+        </div>
+
+        <button
+          onClick={() => scroll('right')}
+          className={`absolute right-0 top-0 bottom-2 z-10 w-12 flex items-center justify-center
+            bg-gradient-to-l from-black/80 to-transparent
+            transition-opacity duration-200 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </section>
+  )
+}
 
 const topVod = smartRecommendPatterns[0].vod_list[0]
 
@@ -49,21 +110,7 @@ export default function RecommendPage() {
       {/* 패턴 섹션들 */}
       <div className="mt-6 space-y-10">
         {smartRecommendPatterns.map((pattern, i) => (
-          <section key={i} className={active === i ? '' : 'opacity-40'}>
-            <div className="px-6 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="bg-blue-500/20 text-blue-400 text-xs font-semibold px-2 py-0.5 rounded-full">
-                  패턴 {pattern.pattern_rank}
-                </span>
-              </div>
-              <h3 className="text-white font-semibold text-base mt-1">{pattern.pattern_reason}</h3>
-            </div>
-            <div className="flex gap-3 overflow-x-auto px-6 pb-2">
-              {pattern.vod_list.map(vod => (
-                <PosterCard key={vod.series_id} vod={vod} />
-              ))}
-            </div>
-          </section>
+          <PatternSection key={i} pattern={pattern} active={active === i} />
         ))}
       </div>
     </main>
