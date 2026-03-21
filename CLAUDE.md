@@ -261,6 +261,12 @@ PGPASSWORD=실제비밀번호 psql -h 실제IP ...
 3. **push 전 사용자 확인** — 명시적 요청 전 `git push` 금지
 4. **보안 점검** — 커밋 전 아래 항목 스캔 필수
 
+### 커밋 단위 규칙
+
+- **관련 작업끼리 묶어서 커밋** — 디자인 변경, 문서 수정, 기능 추가는 각각 별도 커밋
+- **사용자가 "커밋해줘"라고 요청할 때만 커밋** — 작업 완료 후 자동 커밋 금지
+- 예시: UI 폴리쉬 작업 3개 → 1커밋 / 문서 업데이트 → 별도 1커밋
+
 ### 커밋 전 보안 점검 (Frontend 기준)
 
 ```bash
@@ -283,20 +289,54 @@ git diff | grep -E "(password|secret|api_key|token|host)\s*=\s*['\"][^'\"]{4,}"
 
 **사용자가 명시적으로 "push해줘", "merge해줘"라고 말하기 전까지 위 규칙 유효.**
 
-### 커밋 단위 규칙
+### Frontend 브랜치별 터치 허용 파일
 
-- 관련된 작업(디자인 수정, 기능 추가 등)끼리 묶어서 한 번에 커밋
-- 작업 중간에 임의로 커밋하지 않음
-- 사용자가 명시적으로 "커밋해줘"라고 요청할 때만 커밋 진행
+Next.js 라우팅 구조를 그대로 사용하며, 브랜치별 파일 범위는 아래로 제한한다.
 
-### 공용 파일 관리 기준
+#### 공용 파일 관리 기준
 
 | 구분 | 브랜치 | 해당 작업 예시 |
 |------|--------|---------------|
 | 구조/스타일 변경 | `main` 직접 커밋 | 레이아웃, 폰트, 카드 크기, 컴포넌트 프레임 |
-| 기능 추가 | feature 브랜치 → PR | 검색창, 알림, 필터, 인터랙션 |
+| 기능 추가 | feature 브랜치 → PR | 검색창 동작, 알림 로직, 필터, 인터랙션 |
 
 > **"어떻게 보이냐"** → main 직접 / **"어떻게 동작하냐"** → feature 브랜치 → PR
+
+공용 파일 목록 (어느 브랜치에서도 동일하게 보여야 하는 파일):
+
+| 파일 | 설명 |
+|------|------|
+| `frontend/app/layout.tsx` | 폰트, 전체 레이아웃 |
+| `frontend/app/globals.css` | 전역 스타일 |
+| `frontend/components/GNB.tsx` | 공통 네비게이션 바 |
+| `frontend/components/PosterCard.tsx` | 공용 포스터 카드 |
+| `frontend/components/WatchingCard.tsx` | 공용 이어보기 카드 |
+| `frontend/components/HorizontalSection.tsx` | 공용 가로 스크롤 섹션 |
+
+#### 마이페이지 찜 목록 정렬 규칙
+
+- 찜 목록은 **항상 최신순(찜한 날짜 내림차순)** 고정. 별도 정렬 UI 추가 금지.
+- 백엔드 API 연동 시에도 `order_by=wishlisted_at DESC` 적용 필수.
+
+#### 페이지 전용 파일 — 각 feature 브랜치에서 작업
+
+| 브랜치 | 터치 허용 파일 |
+|--------|---------------|
+| `feat/home` | `frontend/app/page.tsx`, `frontend/components/HeroBanner.tsx` |
+| `feat/recommend` | `frontend/app/recommend/page.tsx` |
+| `feat/series-detail` | `frontend/app/series/[series_id]/page.tsx` |
+| `feat/purchase` | `frontend/app/purchase/[series_id]/page.tsx` |
+| `feat/my` | `frontend/app/my/page.tsx` |
+
+### 백엔드 추가 요청 사항
+
+프론트엔드 연동을 위해 백엔드에 추가 구현을 요청한 항목은 `docs/BACKEND_TODO.md` 참조.
+
+| 항목 | 엔드포인트 | 상태 |
+|------|-----------|------|
+| 홈 섹션 개인화 | `GET /home/sections/{user_id}` | 🔴 미구현 |
+| GNB 통합 검색 | `GET /vod/search?q={query}` | 🔴 미구현 |
+| 알림 시스템 | `GET /user/me/notifications` 외 3개 | 🔴 미구현 |
 
 ---
 
@@ -311,8 +351,8 @@ git diff | grep -E "(password|secret|api_key|token|host)\s*=\s*['\"][^'\"]{4,}"
 
 | 컴포넌트 | 고정 항목 | 고정 값 |
 |----------|-----------|---------|
-| `PosterCard` | 카드 크기 | `w-32 h-48` |
-| `WatchingCard` | 카드 크기 | `w-36 h-24` |
+| `PosterCard` | 카드 크기 | `w-60 h-[360px]` |
+| `WatchingCard` | 카드 크기 | `w-60 h-40` |
 | `HeroBanner` | 배너 높이 | `h-[480px]` |
 | `HeroBanner` | 텍스트 패딩 | `pb-16 px-10` |
 | `HeroBanner` | 타이틀 크기 | `text-5xl` |

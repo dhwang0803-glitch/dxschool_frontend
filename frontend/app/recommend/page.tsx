@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef } from 'react'
-// useState는 PatternSection 내부에서만 사용
+
 import Link from 'next/link'
 import PosterCard from '@/components/PosterCard'
 import { smartRecommendPatterns } from '@/lib/mockData'
@@ -79,7 +79,6 @@ export default function RecommendPage() {
           <p className="text-white/60 text-sm mt-2">{topVod.genre} · {topVod.rating}</p>
         </div>
       </Link>
-
 
       {/* 패턴 섹션들 */}
       <div className="mt-6 space-y-10">
