@@ -1,124 +1,152 @@
-# 프론트엔드 완료 후 백엔드 연동 필요 항목
+# 백엔드 추가 요청 사항
 
-> 현재 프론트엔드는 `mockData.ts` 기반으로 동작 중.
-> 아래 항목들은 백엔드 API가 준비되면 순차적으로 교체 예정.
-> 완료된 항목은 `[x]`로 표시 요청.
-
----
-
-## 1. 인증 / 사용자
-
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 로그인 / 로그아웃 | 없음 (하드코딩 유저) | `POST /auth/login`, `POST /auth/logout` |
-| 회원가입 | 없음 | `POST /auth/register` |
-| 사용자 정보 조회 | `userAccount` mockData | `GET /users/me` |
-| 다중 프로필 (가족) | UI만 있음 (전환 버튼) | `GET /users/me/profiles`, `POST /users/me/profiles` |
+> 프론트엔드 연동을 위해 백엔드에 **추가/변경** 요청하는 항목.
+> 협의완료 문서(`docs/프론트엔드_요구사항(협의완료).md`) 기준으로 미포함 사항만 기재.
+> 작성일: 2026-03-21
 
 ---
 
-## 2. VOD 콘텐츠
+## 1. `GET /home/sections` → 개인화 버전으로 변경 요청
 
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 홈 화면 섹션 데이터 | mockData 배열 | `GET /vod/home` (히어로배너, 장르별 목록) |
-| 시리즈 상세 조회 | `getVODById()` mockData | `GET /vod/series/{series_id}` |
-| 에피소드 목록 | `getEpisodes()` mockData | `GET /vod/series/{series_id}/episodes` |
-| 유사 콘텐츠 | `getSimilarVODs()` mockData | `GET /vod/series/{series_id}/similar` |
-| 검색 | 프론트 로컬 필터링 | `GET /vod/search?q={query}&type={title\|person\|genre}` |
+### 현재 구현 (협의완료 기준)
 
----
+```
+GET /home/sections
+→ CT_CL 4종(영화/TV드라마/TV 연예·오락/TV애니메이션) × top 20 고정 반환
+```
 
-## 3. 추천 시스템
+### 변경 요청
 
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 스마트 추천 패턴 | `smartRecommendPatterns` mockData | `GET /recommend/patterns?user_id={id}` |
-| 개인화 추천 | `personalizedVODs` mockData | `GET /recommend/personalized?user_id={id}` |
-| 장르별 시청 비중 | 미구현 | `GET /users/me/genre-stats` |
+```
+GET /home/sections/{user_id}
+→ 사용자의 장르별 시청 비중을 분석해 개인화된 섹션 순서 + 미시청 장르 도전 섹션 반환
+```
 
----
+**응답 스펙:**
+```json
+{
+  "sections": [
+    {
+      "genre": "범죄/스릴러",
+      "view_ratio": 38,
+      "vod_list": [
+        { "series_nm": "...", "asset_nm": "...", "poster_url": "..." }
+      ]
+    },
+    {
+      "genre": "새로운 장르 도전",
+      "view_ratio": 0,
+      "vod_list": [...]
+    }
+  ]
+}
+```
 
-## 4. 시청 기록 / 이어보기
+**동작 기준:**
+- `view_ratio` = 해당 장르 시청 횟수 / 전체 시청 횟수 × 100 (정수, `watch_history` 기반 계산)
+- 섹션 순서: `view_ratio` 내림차순 정렬
+- 마지막 섹션: 한 번도 시청하지 않은 장르 중 1개를 "새로운 장르 도전"으로 추가 (`view_ratio: 0`)
+- 콘텐츠 소스: `serving.popular_recommendation` (장르별 인기순)
+- 비회원/신규 유저(시청 이력 없음): 기존 CT_CL 4종 고정 응답으로 fallback
 
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 이어보기 목록 | `watchingItems` mockData | `GET /users/me/watching` |
-| 에피소드 진행률 | `episodeProgress` Map (휘발성) | `PUT /vod/episodes/{episode_id}/progress` (body: `completion_rate`) |
-| 마지막 시청 에피소드 | `getLastWatchedEpisode()` mockData | `GET /vod/series/{series_id}/last-watched` |
-| 시청 내역 (마이페이지) | mockData 정적 리스트 | `GET /users/me/history` |
-
----
-
-## 5. 찜 기능
-
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 찜 목록 조회 | `wishlistIds` Map (휘발성) | `GET /users/me/wishlist` |
-| 찜 추가 | 로컬 Map 조작 | `POST /users/me/wishlist/{series_id}` |
-| 찜 삭제 | 로컬 Map 조작 | `DELETE /users/me/wishlist/{series_id}` |
-
----
-
-## 6. 구매 / 결제
-
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 구매 여부 확인 | `purchasedIds` Set (휘발성) | `GET /users/me/purchases/{series_id}` |
-| 구매 (대여/소장) | 로컬 포인트 차감 | `POST /purchases` (body: `series_id`, `option_type`) |
-| 구매 내역 조회 | mockData 정적 리스트 | `GET /users/me/purchases` |
+**소스 테이블:** `watch_history`, `serving.popular_recommendation`
 
 ---
 
-## 7. 포인트
+## 2. 알림 시스템 신규 엔드포인트 + DB 테이블
 
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 보유 포인트 조회 | `userAccount.points` mockData | `GET /users/me/points` |
-| 포인트 사용 내역 | `pointHistory` 배열 (휘발성) | `GET /users/me/points/history` |
-| 포인트 충전 | 미구현 | `POST /users/me/points/charge` |
+GNB 알림 벨에 시청예약 외 **신규 에피소드 알림** 등 다양한 알림 유형 표시가 필요함.
+현재 `watch_reservation`은 사용자가 직접 등록한 예약만 관리하므로 서버 발송 알림은 별도 테이블 필요.
+
+### 신규 엔드포인트 (4개)
+
+| 엔드포인트 | 설명 | 소스 테이블 |
+|-----------|------|------------|
+| `GET /user/me/notifications` | 알림 목록 (최신순, 전체) | `notifications` |
+| `PATCH /user/me/notifications/{id}/read` | 알림 읽음 처리 | `notifications` |
+| `DELETE /user/me/notifications/{id}` | 알림 삭제 | `notifications` |
+| `POST /user/me/notifications/read-all` | 전체 읽음 처리 | `notifications` |
+
+**`GET /user/me/notifications` 응답 스펙:**
+```json
+[
+  {
+    "id": 1,
+    "type": "new_episode",
+    "title": "선재 업고 튀어",
+    "message": "새로운 에피소드가 등록되었습니다",
+    "image_url": "string | null",
+    "read": false,
+    "created_at": "2026-03-21T10:00:00Z"
+  },
+  {
+    "id": 2,
+    "type": "reservation",
+    "title": "제철장터",
+    "message": "2시간 후에 시작합니다",
+    "image_url": "string | null",
+    "read": false,
+    "created_at": "2026-03-21T09:00:00Z"
+  }
+]
+```
+
+> 알림 뱃지 카운트: `read=false` 개수를 프론트에서 계산.
+
+### 신규 DB 테이블
+
+```sql
+CREATE TABLE public.notifications (
+  id          SERIAL        PRIMARY KEY,
+  user_id     VARCHAR(64)   NOT NULL,
+  type        VARCHAR(32)   NOT NULL,  -- 'new_episode' | 'reservation' | 'system'
+  title       VARCHAR(255)  NOT NULL,
+  message     VARCHAR(512)  NOT NULL,
+  image_url   TEXT,
+  read        BOOLEAN       NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ   DEFAULT now()
+);
+CREATE INDEX idx_notifications_user ON public.notifications (user_id, created_at DESC);
+```
+
+**알림 생성 트리거 예시:**
+- 새 에피소드 VOD INSERT → 해당 시리즈를 찜한 유저(`wishlist`)에게 `new_episode` 알림 자동 발송
+- `watch_reservation` 알림 시각(`alert_at`) 도달 → `reservation` 알림 생성
 
 ---
 
-## 8. 알림 / 시청 예약
+## 3. GNB 통합 검색 신규 엔드포인트
 
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 알림 목록 조회 | `reservations` 하드코딩 | `GET /users/me/notifications` |
-| 알림 읽음 처리 | 미구현 | `PATCH /users/me/notifications/{id}/read` |
-| 알림 삭제 | UI만 있음 (X버튼) | `DELETE /users/me/notifications/{id}` |
-| 시청 예약 등록 | 미구현 | `POST /users/me/reservations` (body: `broadcast_id`) |
-| 시청 예약 취소 | 미구현 | `DELETE /users/me/reservations/{id}` |
+GNB 검색창에서 제목·출연진·감독·장르를 통합 검색하는 기능을 추가했으나, 협의완료 문서에 해당 엔드포인트가 없음.
+(협의완료의 "에피소드 검색"은 시리즈 상세 페이지 내부 검색으로 별개)
 
----
+### 신규 엔드포인트
 
-## 9. EPG (실시간 방송 편성표)
+| 엔드포인트 | 설명 |
+|-----------|------|
+| `GET /vod/search?q={query}` | 제목·출연진·감독·장르 통합 검색, 최대 8건 반환 |
 
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 방송 편성표 조회 | 미구현 | `GET /epg?date={date}&channel={ch}` |
-| 현재 방영 중 콘텐츠 | 미구현 | `GET /epg/now` |
-| 방송 예정 시간 계산 | 하드코딩 ("2시간 후") | 위 EPG API 응답에서 계산 |
+**응답 스펙:**
+```json
+[
+  {
+    "series_nm": "범죄도시4",
+    "asset_nm": "범죄도시4",
+    "genre": "범죄/액션",
+    "ct_cl": "영화",
+    "poster_url": "string"
+  }
+]
+```
 
----
-
-## 10. 영상 플레이어
-
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 재생 URL 발급 | YouTube ID 하드코딩 | `GET /vod/episodes/{episode_id}/stream-url` |
-| 자막 | 미구현 | `GET /vod/episodes/{episode_id}/subtitles` |
+**검색 대상 컬럼:** `asset_nm`(제목), `cast_lead`(출연진), `director`(감독), `genre`(장르)
+**소스 테이블:** `public.vod`
 
 ---
 
-## 우선순위 제안
+## 공통 사항
 
-| 순위 | 항목 | 이유 |
-|------|------|------|
-| 1 | 인증 (로그인) | 모든 개인화 기능의 전제 조건 |
-| 2 | VOD 콘텐츠 API | 실제 데이터로 교체 필수 |
-| 3 | 시청 기록 / 이어보기 | 핵심 UX |
-| 4 | 추천 시스템 | 차별화 핵심 기능 |
-| 5 | 찜 / 구매 / 포인트 | 수익 모델 |
-| 6 | 알림 / EPG | 차별화 기능 |
-| 7 | 영상 플레이어 | 실제 스트리밍 연동 |
+| 항목 | 내용 |
+|------|------|
+| 에러 응답 | 기존 형식 동일: `{"error": {"code": "...", "message": "한글 메시지"}}` |
+| 인증 | 기존 JWT 방식 동일 (`Authorization: Bearer <token>`) |
