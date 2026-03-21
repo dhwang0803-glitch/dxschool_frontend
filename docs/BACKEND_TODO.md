@@ -1,124 +1,154 @@
-# 프론트엔드 완료 후 백엔드 연동 필요 항목
+# 백엔드 추가 요청 사항
 
-> 현재 프론트엔드는 `mockData.ts` 기반으로 동작 중.
-> 아래 항목들은 백엔드 API가 준비되면 순차적으로 교체 예정.
-> 완료된 항목은 `[x]`로 표시 요청.
-
----
-
-## 1. 인증 / 사용자
-
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 로그인 / 로그아웃 | 없음 (하드코딩 유저) | `POST /auth/login`, `POST /auth/logout` |
-| 회원가입 | 없음 | `POST /auth/register` |
-| 사용자 정보 조회 | `userAccount` mockData | `GET /users/me` |
-| 다중 프로필 (가족) | UI만 있음 (전환 버튼) | `GET /users/me/profiles`, `POST /users/me/profiles` |
+> 프론트엔드 연동을 위해 백엔드에 추가/수정 요청하는 항목 목록.
+> 상세 협의 내용 → `docs/프론트엔드_요구사항(협의중).md`
+> 작성일: 2026-03-21
 
 ---
 
-## 2. VOD 콘텐츠
+## 1. 신규 엔드포인트 (17개)
 
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 홈 화면 섹션 데이터 | mockData 배열 | `GET /vod/home` (히어로배너, 장르별 목록) |
-| 시리즈 상세 조회 | `getVODById()` mockData | `GET /vod/series/{series_id}` |
-| 에피소드 목록 | `getEpisodes()` mockData | `GET /vod/series/{series_id}/episodes` |
-| 유사 콘텐츠 | `getSimilarVODs()` mockData | `GET /vod/series/{series_id}/similar` |
-| 검색 | 프론트 로컬 필터링 | `GET /vod/search?q={query}&type={title\|person\|genre}` |
+### 인증
+| 엔드포인트 | 설명 | 비고 |
+|-----------|------|------|
+| `POST /auth/token` | 셋톱박스 자동 로그인 (body: `user_id: sha2_hash`) | 만료 없음, 비로그인 시나리오 없음 |
 
----
+### 홈 페이지
+| 엔드포인트 | 설명 | 소스 테이블 |
+|-----------|------|------------|
+| `GET /home/banner` | 히어로 배너 top 5 (Hybrid score 내림차순) | `serving.hybrid_recommendation` |
+| `GET /home/sections/{user_id}` | 사용자 장르별 시청 비중 기반 개인화 추천 섹션 + 미시청 장르 도전 섹션 | `watch_history`, `serving.popular_recommendation` |
+| `GET /user/{user_id}/watching` | 이어보기 목록 (strt_dt 최신순 10개, completion_rate 포함) | `watch_history` |
 
-## 3. 추천 시스템
+**`GET /home/sections/{user_id}` 응답 스펙:**
+```json
+{
+  "sections": [
+    {
+      "genre": "범죄/스릴러",
+      "view_ratio": 38,
+      "vod_list": [{ "series_id": "...", "asset_nm": "...", "poster_url": "..." }]
+    },
+    {
+      "genre": "새로운 장르 도전",
+      "view_ratio": 0,
+      "vod_list": [...]
+    }
+  ]
+}
+```
 
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 스마트 추천 패턴 | `smartRecommendPatterns` mockData | `GET /recommend/patterns?user_id={id}` |
-| 개인화 추천 | `personalizedVODs` mockData | `GET /recommend/personalized?user_id={id}` |
-| 장르별 시청 비중 | 미구현 | `GET /users/me/genre-stats` |
+### 시리즈 상세
+| 엔드포인트 | 설명 | 소스 테이블 |
+|-----------|------|------------|
+| `GET /vod/{series_id}/episodes` | 에피소드 목록 (DISTINCT ON asset_nm 중복 제거, 페이지네이션 필수) | `public.vod` |
+| `GET /user/{user_id}/series/{series_id}/progress` | 마지막 시청 에피소드 + completion_rate (이어보기 버튼 분기용) | `public.episode_progress` |
+| `POST /user/{user_id}/episode/{episode_id}/progress` | 에피소드 시청 진행률 저장 (30초 heartbeat) | `public.episode_progress` |
+| `GET /user/{user_id}/purchases/{series_id}` | 구매 여부 + 대여 만료 확인 | `public.purchase_history` |
+| `POST /user/{user_id}/wishlist` | 찜 추가 (body: `series_id`) | `public.wishlist` |
+| `DELETE /user/{user_id}/wishlist/{series_id}` | 찜 해제 | `public.wishlist` |
 
----
+### 구매
+| 엔드포인트 | 설명 | 비고 |
+|-----------|------|------|
+| `GET /vod/{series_id}/purchase-options` | 구매 옵션 (대여 490P / 영구 1490P) | - |
+| `POST /purchases` | 포인트 차감 + 구매 기록 트랜잭션 | 포인트 부족 시 `402 INSUFFICIENT_POINTS` |
 
-## 4. 시청 기록 / 이어보기
+**`POST /purchases` 요청/응답:**
+```json
+// 요청
+{ "user_id": "...", "series_id": "...", "option_type": "rental | permanent", "points_used": 490 }
+// 응답
+{ "purchase_id": 123, "remaining_points": 99510, "expires_at": "2026-03-21T15:30:00Z" }
+```
 
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 이어보기 목록 | `watchingItems` mockData | `GET /users/me/watching` |
-| 에피소드 진행률 | `episodeProgress` Map (휘발성) | `PUT /vod/episodes/{episode_id}/progress` (body: `completion_rate`) |
-| 마지막 시청 에피소드 | `getLastWatchedEpisode()` mockData | `GET /vod/series/{series_id}/last-watched` |
-| 시청 내역 (마이페이지) | mockData 정적 리스트 | `GET /users/me/history` |
+### 마이페이지
+| 엔드포인트 | 설명 | 비고 |
+|-----------|------|------|
+| `GET /user/{user_id}/profile` | 사용자 표시명(sha2_hash 앞 5자), 포인트 잔액 | 쿠폰 제외 |
+| `GET /user/{user_id}/points` | 포인트 잔액 + point_history 내역 | point_history 실시간 집계 |
+| `GET /user/{user_id}/history` | 시청 내역 (최근 3개월) | `watch_history` |
+| `GET /user/{user_id}/purchases` | 구매 내역 | `public.purchase_history` |
+| `GET /user/{user_id}/wishlist` | 찜 목록 (`created_at DESC` 최신순 고정) | `public.wishlist` |
 
----
+### GNB 검색
+| 엔드포인트 | 설명 | 비고 |
+|-----------|------|------|
+| `GET /vod/search?q={query}` | 제목·출연진·감독·장르 통합 검색 (최대 8건) | 응답: series_id, asset_nm, genre, ct_cl, poster_url |
 
-## 5. 찜 기능
+### 알림 / 시청 예약
+| 엔드포인트 | 설명 |
+|-----------|------|
+| `GET /user/{user_id}/notifications` | 알림 목록 (응답: id, type, title, message, image_url, read) |
+| `PATCH /user/{user_id}/notifications/{id}/read` | 알림 읽음 처리 |
+| `DELETE /user/{user_id}/notifications/{id}` | 알림 삭제 |
+| `POST /user/{user_id}/reservations` | 시청 예약 등록 (body: `series_id`, `scheduled_at`) |
+| `DELETE /user/{user_id}/reservations/{id}` | 시청 예약 취소 |
 
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 찜 목록 조회 | `wishlistIds` Map (휘발성) | `GET /users/me/wishlist` |
-| 찜 추가 | 로컬 Map 조작 | `POST /users/me/wishlist/{series_id}` |
-| 찜 삭제 | 로컬 Map 조작 | `DELETE /users/me/wishlist/{series_id}` |
-
----
-
-## 6. 구매 / 결제
-
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 구매 여부 확인 | `purchasedIds` Set (휘발성) | `GET /users/me/purchases/{series_id}` |
-| 구매 (대여/소장) | 로컬 포인트 차감 | `POST /purchases` (body: `series_id`, `option_type`) |
-| 구매 내역 조회 | mockData 정적 리스트 | `GET /users/me/purchases` |
-
----
-
-## 7. 포인트
-
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 보유 포인트 조회 | `userAccount.points` mockData | `GET /users/me/points` |
-| 포인트 사용 내역 | `pointHistory` 배열 (휘발성) | `GET /users/me/points/history` |
-| 포인트 충전 | 미구현 | `POST /users/me/points/charge` |
-
----
-
-## 8. 알림 / 시청 예약
-
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 알림 목록 조회 | `reservations` 하드코딩 | `GET /users/me/notifications` |
-| 알림 읽음 처리 | 미구현 | `PATCH /users/me/notifications/{id}/read` |
-| 알림 삭제 | UI만 있음 (X버튼) | `DELETE /users/me/notifications/{id}` |
-| 시청 예약 등록 | 미구현 | `POST /users/me/reservations` (body: `broadcast_id`) |
-| 시청 예약 취소 | 미구현 | `DELETE /users/me/reservations/{id}` |
-
----
-
-## 9. EPG (실시간 방송 편성표)
-
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 방송 편성표 조회 | 미구현 | `GET /epg?date={date}&channel={ch}` |
-| 현재 방영 중 콘텐츠 | 미구현 | `GET /epg/now` |
-| 방송 예정 시간 계산 | 하드코딩 ("2시간 후") | 위 EPG API 응답에서 계산 |
-
----
-
-## 10. 영상 플레이어
-
-| 항목 | 현재 상태 | 필요한 API |
-|------|----------|-----------|
-| 재생 URL 발급 | YouTube ID 하드코딩 | `GET /vod/episodes/{episode_id}/stream-url` |
-| 자막 | 미구현 | `GET /vod/episodes/{episode_id}/subtitles` |
+> 알림 뱃지 카운트는 `read=false` 개수로 프론트에서 계산 예정.
+> 알림 이미지는 `image_url` 필드로 제공 필요 (현재 이미지 자리만 있음).
 
 ---
 
-## 우선순위 제안
+## 2. 기존 엔드포인트 수정
 
-| 순위 | 항목 | 이유 |
-|------|------|------|
-| 1 | 인증 (로그인) | 모든 개인화 기능의 전제 조건 |
-| 2 | VOD 콘텐츠 API | 실제 데이터로 교체 필수 |
-| 3 | 시청 기록 / 이어보기 | 핵심 UX |
-| 4 | 추천 시스템 | 차별화 핵심 기능 |
-| 5 | 찜 / 구매 / 포인트 | 수익 모델 |
-| 6 | 알림 / EPG | 차별화 기능 |
-| 7 | 영상 플레이어 | 실제 스트리밍 연동 |
+### `GET /recommend/{user_id}` — 응답 구조 확장
+현재 CF_Engine 결과만 반환 → `explanation_tags` + 패턴별 그룹핑 포함 필요.
+
+```json
+{
+  "user_id": "string",
+  "top_vod": { "series_id": "...", "asset_nm": "...", "poster_url": "..." },
+  "patterns": [
+    {
+      "pattern_rank": 1,
+      "pattern_reason": "봉준호 감독 작품을 즐겨 보셨어요",
+      "vod_list": [{ "series_id": "...", "asset_nm": "...", "poster_url": "...", "score": 0.92 }]
+    }
+  ]
+}
+```
+
+---
+
+## 3. WebSocket — 광고 팝업 (`WS /ad/popup`)
+
+| 타입 | 동작 |
+|------|------|
+| `local_gov` (지역광고) | 지역 사진 + 축제명 + 일정 팝업. 유저 버튼 없음. 10초 후 자동 최소화 |
+| `seasonal_market` (제철장터) | "{상품명} 판매중" 메시지 + 시청예약/종료 버튼. 10초 후 자동 최소화 |
+
+**Server → Client:**
+```json
+{ "type": "ad_popup", "ad_type": "local_gov | seasonal_market", "vod_id": "string", "time_sec": 120, "data": { ... } }
+```
+
+**Client → Server:**
+```json
+{ "type": "ad_action", "action": "reserve_watch | dismiss | minimize | reopen", "vod_id": "string" }
+```
+
+---
+
+## 4. 신규 DB 테이블 (4개)
+
+| 테이블 | 의존 엔드포인트 |
+|--------|---------------|
+| `public.wishlist` | GET/POST/DELETE `/user/{user_id}/wishlist` |
+| `public.episode_progress` | GET/POST `/user/{user_id}/.../progress` |
+| `public.purchase_history` | GET/POST `/purchases`, `/purchases/{series_id}` |
+| `public.point_history` | GET `/user/{user_id}/points`, POST `/purchases` 트랜잭션 |
+
+> DDL 상세 → `docs/프론트엔드_요구사항(협의중).md` 섹션 5 참조.
+
+---
+
+## 5. 공통 사항
+
+| 항목 | 내용 |
+|------|------|
+| 에러 응답 형식 | `{"error": {"code": "ERROR_CODE", "message": "한글 메시지"}}` |
+| 페이지네이션 | 25건/페이지, 스크롤 최하단 페이지 번호 버튼 (1~5) |
+| 에피소드 검색 | asset_nm 기준, 출연진 초성검색, 회차 숫자 검색 지원 |
+| series_id 식별자 | `vod` 테이블의 `series_nm` 컬럼으로 대체 확정 |
+| CORS | 현행 `localhost:3000` 유지, 배포 시 조정 |
