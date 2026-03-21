@@ -283,6 +283,33 @@ git diff | grep -E "(password|secret|api_key|token|host)\s*=\s*['\"][^'\"]{4,}"
 
 **사용자가 명시적으로 "push해줘", "merge해줘"라고 말하기 전까지 위 규칙 유효.**
 
+### Frontend 브랜치별 터치 허용 파일
+
+Next.js 라우팅 구조를 그대로 사용하며, 브랜치별 파일 범위는 아래로 제한한다.
+
+#### 공용 파일 — main에서 직접 관리 (브랜치 작업 금지)
+
+어느 브랜치에서도 동일하게 보여야 하는 파일은 **main에서 직접 커밋**한다.
+
+| 파일 | 설명 |
+|------|------|
+| `frontend/app/layout.tsx` | 폰트, 전체 레이아웃 |
+| `frontend/app/globals.css` | 전역 스타일 |
+| `frontend/components/GNB.tsx` | 공통 네비게이션 바 |
+| `frontend/components/PosterCard.tsx` | 공용 포스터 카드 |
+| `frontend/components/WatchingCard.tsx` | 공용 이어보기 카드 |
+| `frontend/components/HorizontalSection.tsx` | 공용 가로 스크롤 섹션 |
+
+#### 페이지 전용 파일 — 각 feature 브랜치에서 작업
+
+| 브랜치 | 터치 허용 파일 |
+|--------|---------------|
+| `feat/home` | `frontend/app/page.tsx`, `frontend/components/HeroBanner.tsx` |
+| `feat/recommend` | `frontend/app/recommend/page.tsx` |
+| `feat/series-detail` | `frontend/app/series/[series_id]/page.tsx` |
+| `feat/purchase` | `frontend/app/purchase/[series_id]/page.tsx` |
+| `feat/my` | `frontend/app/my/page.tsx` |
+
 ---
 
 ## 🎨 Frontend CSS 폴리쉬 규칙 (Frontend 브랜치 적용)
@@ -296,8 +323,8 @@ git diff | grep -E "(password|secret|api_key|token|host)\s*=\s*['\"][^'\"]{4,}"
 
 | 컴포넌트 | 고정 항목 | 고정 값 |
 |----------|-----------|---------|
-| `PosterCard` | 카드 크기 | `w-32 h-48` |
-| `WatchingCard` | 카드 크기 | `w-36 h-24` |
+| `PosterCard` | 카드 크기 | `w-60 h-[360px]` |
+| `WatchingCard` | 카드 크기 | `w-60 h-40` |
 | `HeroBanner` | 배너 높이 | `h-[480px]` |
 | `HeroBanner` | 텍스트 패딩 | `pb-16 px-10` |
 | `HeroBanner` | 타이틀 크기 | `text-5xl` |

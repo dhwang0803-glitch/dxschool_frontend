@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import GNB from "@/components/GNB";
 
-const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const notoSansKR = Noto_Sans_KR({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 
 export const metadata: Metadata = {
   title: "DXVOD",
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={`${geist.variable} antialiased`}>
+    <html lang="ko" className={`${notoSansKR.className} antialiased`}>
       <body className="bg-black min-h-screen">
         <GNB />
         <div className="pt-14">{children}</div>
