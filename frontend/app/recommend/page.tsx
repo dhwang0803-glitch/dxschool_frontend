@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef } from 'react'
+
 import Link from 'next/link'
 import PosterCard from '@/components/PosterCard'
 import { smartRecommendPatterns } from '@/lib/mockData'

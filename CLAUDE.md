@@ -401,3 +401,17 @@ CSS 수정 시 →
 - `WatchingSection`은 `page.tsx` 내 별도 함수 컴포넌트로 분리 유지
 - 화살표 네비게이션: `onMouseEnter/Leave` + `opacity-0/100` 토글 방식 유지
 - 이어보기 섹션 카드 6개 표시 기준 유지 (`w-60 h-40`)
+
+---
+
+## feat/recommend 브랜치 전용 규칙
+
+### 담당 파일
+- `frontend/app/recommend/page.tsx`
+
+### 작업 규칙
+- `PatternSection`은 별도 함수 컴포넌트로 분리 유지
+- 상단 헤더 텍스트(AI기반/스마트추천/설명) 제거 상태 유지
+- 패턴 탭 버튼 및 패턴 뱃지 없음 유지
+- 화살표 네비게이션: `onMouseEnter/Leave` + `opacity-0/100` 토글 방식 유지
+- 배너 풀와이드 `h-[480px]` 유지
