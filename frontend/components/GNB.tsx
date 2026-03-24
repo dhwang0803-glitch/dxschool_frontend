@@ -15,8 +15,8 @@ const reservations = [
   },
   {
     id: 'r2',
-    title: '생방송 오늘저녁',
-    message: '오늘 저녁 7시에 시작합니다',
+    title: '선재 업고 튀어',
+    message: '새로운 에피소드 등록',
   },
 ]
 
