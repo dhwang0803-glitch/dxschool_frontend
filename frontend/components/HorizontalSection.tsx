@@ -25,6 +25,7 @@ export default function HorizontalSection({ title, vods }: Props) {
     >
       <h2 className="text-white font-semibold text-xl mb-3 px-6">{title}</h2>
       <div className="relative">
+        {/* 왼쪽 화살표 */}
         <button
           onClick={() => scroll('left')}
           className={`absolute left-0 top-0 bottom-2 z-10 w-12 flex items-center justify-center
@@ -45,6 +46,7 @@ export default function HorizontalSection({ title, vods }: Props) {
           ))}
         </div>
 
+        {/* 오른쪽 화살표 */}
         <button
           onClick={() => scroll('right')}
           className={`absolute right-0 top-0 bottom-2 z-10 w-12 flex items-center justify-center

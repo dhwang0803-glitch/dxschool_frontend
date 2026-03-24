@@ -289,6 +289,12 @@ git diff | grep -E "(password|secret|api_key|token|host)\s*=\s*['\"][^'\"]{4,}"
 
 **사용자가 명시적으로 "push해줘", "merge해줘"라고 말하기 전까지 위 규칙 유효.**
 
+### 커밋 단위 규칙
+
+- 관련된 작업(디자인 수정, 기능 추가 등)끼리 묶어서 한 번에 커밋
+- 작업 중간에 임의로 커밋하지 않음
+- 사용자가 명시적으로 "커밋해줘"라고 요청할 때만 커밋 진행
+
 ### Frontend 브랜치별 터치 허용 파일
 
 Next.js 라우팅 구조를 그대로 사용하며, 브랜치별 파일 범위는 아래로 제한한다.
@@ -376,3 +382,16 @@ CSS 수정 시 →
     px-*, py-*, gap-*, mt-*, mb-* 레이아웃 간격 변경 없음 확인 →
       브라우저에서 레이아웃 깨짐 없음 확인
 ```
+
+---
+
+## feat/home 브랜치 전용 규칙
+
+### 담당 파일
+- `frontend/app/page.tsx`
+- `frontend/components/HeroBanner.tsx`
+
+### 작업 규칙
+- `WatchingSection`은 `page.tsx` 내 별도 함수 컴포넌트로 분리 유지
+- 화살표 네비게이션: `onMouseEnter/Leave` + `opacity-0/100` 토글 방식 유지
+- 이어보기 섹션 카드 6개 표시 기준 유지 (`w-60 h-40`)
