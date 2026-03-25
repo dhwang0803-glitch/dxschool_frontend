@@ -15,6 +15,9 @@ secrets.json
 # Claude Code local settings
 .claude/settings.local.json
 
+# Skills (API 문서 등 내부 참조용)
+skills/
+
 # Data files
 data/
 *.parquet
