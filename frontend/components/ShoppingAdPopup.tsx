@@ -184,30 +184,17 @@ export default function ShoppingAdPopup({
   )
 }
 
-/* ── 지자체 축제 팝업 (local_gov) ── */
+/* ── 지자체 축제 팝업 (local_gov) — GIF에 축제명+일정 포함, 별도 텍스트 없음 ── */
 function LocalGovPopup({ ad, onDismiss }: { ad: AdPopup; onDismiss: (id: string) => void }) {
   return (
     <div className="w-72 rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900">
-      {/* GIF/이미지 */}
-      {(ad.data.ad_image_url || ad.data.image_url) && (
+      {ad.data.ad_image_url && (
         <img
-          src={ad.data.ad_image_url || ad.data.image_url}
+          src={ad.data.ad_image_url}
           alt={ad.data.product_name || '축제 광고'}
-          className="w-full h-40 object-cover"
+          className="w-full object-contain"
         />
       )}
-      {/* 축제 정보 */}
-      <div className="p-3">
-        {ad.data.popup_title && (
-          <p className="text-white font-semibold text-sm">{ad.data.popup_title}</p>
-        )}
-        {ad.data.popup_body && (
-          <p className="text-white/60 text-xs mt-1">{ad.data.popup_body}</p>
-        )}
-        {!ad.data.popup_title && ad.data.product_name && (
-          <p className="text-white font-semibold text-sm">{ad.data.product_name}</p>
-        )}
-      </div>
     </div>
   )
 }
