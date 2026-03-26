@@ -1,10 +1,17 @@
 'use client'
-import { useState, use, useEffect } from 'react'
+import { useState, use, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import PosterCard from '@/components/PosterCard'
 import { VOD, isImageUrl, getFallbackGradient } from '@/lib/types'
-import { getEpisodes, getProgress, getPurchaseCheck, getSimilar, addWishlist, removeWishlist } from '@/lib/api'
+import { getEpisodes, getProgress, getPurchaseCheck, getSimilar, addWishlist, removeWishlist, getVODDetail, postEpisodeProgress } from '@/lib/api'
+
+declare global {
+  interface Window {
+    YT: any
+    onYouTubeIframeAPIReady: (() => void) | undefined
+  }
+}
 
 export default function SeriesPage({ params }: { params: Promise<{ series_id: string }> }) {
   const { series_id } = use(params)
@@ -19,7 +26,59 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const [similar, setSimilar] = useState<VOD[]>([])
   const [wishlisted, setWishlisted] = useState(false)
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
+  const [youtubeUrl, setYoutubeUrl] = useState<string | null>(null)
+  const [trailerEpisode, setTrailerEpisode] = useState<string | null>(null)
+  const [playerError, setPlayerError] = useState(false)
 
+  const playerRef = useRef<any>(null)
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const trailerEpisodeRef = useRef<string | null>(null)
+
+  // 로컬 진행률 업데이트 (API 재조회 없이 즉시 반영)
+  const updateLocalProgress = useCallback((episodeTitle: string, rate: number) => {
+    setProgress((prev: any) => {
+      if (!prev) return { last_episode: episodeTitle, last_completion_rate: rate, episodes: [{ episode_title: episodeTitle, completion_rate: rate }] }
+      const existingEps = prev.episodes || []
+      const found = existingEps.some((e: any) => e.episode_title === episodeTitle)
+      const eps = found
+        ? existingEps.map((e: any) => e.episode_title === episodeTitle ? { ...e, completion_rate: rate } : e)
+        : [...existingEps, { episode_title: episodeTitle, completion_rate: rate }]
+      return { ...prev, last_episode: episodeTitle, last_completion_rate: rate, episodes: eps }
+    })
+  }, [])
+
+  const stopHeartbeat = useCallback(() => {
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current)
+      heartbeatRef.current = null
+    }
+  }, [])
+
+  const startHeartbeat = useCallback(() => {
+    stopHeartbeat()
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+    if (!token) return // 비로그인 시 heartbeat 전송 안 함
+
+    heartbeatRef.current = setInterval(() => {
+      const player = playerRef.current
+      const epTitle = trailerEpisodeRef.current
+      if (!player || !epTitle) return
+
+      try {
+        const current = player.getCurrentTime()
+        const duration = player.getDuration()
+        if (!duration) return
+
+        const rate = Math.min(100, Math.round((current / duration) * 100))
+        postEpisodeProgress(seriesNm, epTitle, rate).catch(() => {})
+        updateLocalProgress(epTitle, rate)
+      } catch {
+        // player가 아직 준비되지 않은 경우 무시
+      }
+    }, 30000)
+  }, [seriesNm, stopHeartbeat, updateLocalProgress])
+
+  // 데이터 로드
   useEffect(() => {
     async function load() {
       try {
@@ -29,10 +88,12 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
           getPurchaseCheck(seriesNm),
         ])
 
+        let loadedEpisodes: any[] = []
+
         if (episodesRes.status === 'fulfilled' && episodesRes.value) {
-          setEpisodes(episodesRes.value.episodes || [])
-          // 첫 에피소드 포스터를 시리즈 대표 포스터로 사용
-          const firstEp = episodesRes.value.episodes?.[0]
+          loadedEpisodes = episodesRes.value.episodes || []
+          setEpisodes(loadedEpisodes)
+          const firstEp = loadedEpisodes[0]
           if (firstEp?.poster_url) setPosterUrl(firstEp.poster_url)
         }
 
@@ -44,6 +105,20 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
           setPurchaseInfo(purchaseRes.value)
           setPurchased(purchaseRes.value.purchased === true)
         }
+
+        // 첫 에피소드의 VOD 상세에서 youtube_url 조회
+        if (loadedEpisodes.length > 0) {
+          try {
+            const vodDetail = await getVODDetail(loadedEpisodes[0].episode_title)
+            if (vodDetail?.youtube_url) {
+              setYoutubeUrl(vodDetail.youtube_url)
+              setTrailerEpisode(loadedEpisodes[0].episode_title)
+              trailerEpisodeRef.current = loadedEpisodes[0].episode_title
+            }
+          } catch {
+            // VOD 상세 조회 실패 시 트레일러 미표시
+          }
+        }
       } catch (e) {
         console.error('시리즈 데이터 로드 실패:', e)
       } finally {
@@ -52,6 +127,66 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     }
     load()
   }, [seriesNm])
+
+  // YouTube IFrame Player 초기화
+  useEffect(() => {
+    if (!youtubeUrl || playerError) return
+
+    const videoId = youtubeUrl.split('/embed/')[1]
+    if (!videoId) return
+
+    const initPlayer = () => {
+      if (playerRef.current) {
+        playerRef.current.destroy()
+        playerRef.current = null
+      }
+
+      playerRef.current = new window.YT.Player('yt-trailer', {
+        videoId,
+        playerVars: { autoplay: 0, rel: 0 },
+        events: {
+          onStateChange: (e: any) => {
+            if (e.data === window.YT.PlayerState.PLAYING) {
+              startHeartbeat()
+            } else {
+              stopHeartbeat()
+              // 재생 완료 시 최종 진행률 전송
+              if (e.data === window.YT.PlayerState.ENDED && trailerEpisodeRef.current) {
+                const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+                if (token) {
+                  postEpisodeProgress(seriesNm, trailerEpisodeRef.current, 100).catch(() => {})
+                  updateLocalProgress(trailerEpisodeRef.current, 100)
+                }
+              }
+            }
+          },
+          onError: () => {
+            setPlayerError(true)
+            stopHeartbeat()
+          },
+        },
+      })
+    }
+
+    if (window.YT?.Player) {
+      initPlayer()
+    } else {
+      if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+        const tag = document.createElement('script')
+        tag.src = 'https://www.youtube.com/iframe_api'
+        document.head.appendChild(tag)
+      }
+      window.onYouTubeIframeAPIReady = initPlayer
+    }
+
+    return () => {
+      stopHeartbeat()
+      if (playerRef.current) {
+        playerRef.current.destroy()
+        playerRef.current = null
+      }
+    }
+  }, [youtubeUrl, playerError, seriesNm, startHeartbeat, stopHeartbeat, updateLocalProgress])
 
   const toggleWishlist = async () => {
     try {
@@ -169,6 +304,16 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
           </div>
         </div>
 
+        {/* 트레일러 */}
+        {youtubeUrl && !playerError && (
+          <div className="mt-8">
+            <h2 className="text-white font-semibold text-base mb-3">트레일러</h2>
+            <div className="relative w-full rounded-xl overflow-hidden bg-white/5" style={{ aspectRatio: '16/9' }}>
+              <div id="yt-trailer" className="w-full h-full" />
+            </div>
+          </div>
+        )}
+
         {/* 에피소드 목록 */}
         <div className="mt-8">
           <h2 className="text-white font-semibold text-base mb-3">에피소드</h2>
@@ -193,6 +338,9 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                   <div className="flex-1 min-w-0">
                     <span className="text-sm text-white/80">{ep.episode_title}</span>
                     {ep.is_free && <span className="ml-2 text-xs text-green-400">무료</span>}
+                    {epProgress?.completion_rate === 100 && (
+                      <span className="ml-2 text-xs text-blue-400">시청 완료</span>
+                    )}
                   </div>
                 </div>
               )

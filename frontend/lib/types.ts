@@ -15,6 +15,7 @@ export type VOD = {
   smry?: string
   score?: number
   is_free?: boolean
+  youtube_url?: string | null
 }
 
 export type WatchingItem = {
