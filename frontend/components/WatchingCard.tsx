@@ -6,7 +6,7 @@ export default function WatchingCard({ item }: { item: WatchingItem }) {
   const hasImage = isImageUrl(item.poster_url)
 
   return (
-    <Link href={`/series/${encodeURIComponent(item.series_id)}`} className="group shrink-0 w-60">
+    <Link href={`/series/${encodeURIComponent(item.series_id)}?episode=${encodeURIComponent(item.asset_nm)}`} className="group shrink-0 w-60">
       <div className={`w-60 h-40 rounded-lg overflow-hidden relative
         group-hover:brightness-110 transition-all duration-200
         ${!hasImage ? `bg-gradient-to-br ${getFallbackGradient(item.asset_nm)}` : ''}`}>
