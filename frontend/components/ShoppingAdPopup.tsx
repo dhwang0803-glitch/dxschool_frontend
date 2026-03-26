@@ -24,7 +24,15 @@ export default function ShoppingAdPopup({
 }: Props) {
   const [items, setItems] = useState<AdItem[]>([])
   const [toast, setToast] = useState<string | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const autoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  // 전체화면 감지
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
 
   // 새 광고 수신 → items에 추가 + 10초 자동 최소화 타이머
   useEffect(() => {
@@ -133,21 +141,22 @@ export default function ShoppingAdPopup({
 
   const visibleItems = items.filter((i) => i.state === 'visible')
   const minimizedItems = items.filter((i) => i.state === 'minimized')
+  const pos = isFullscreen ? 'fixed' : 'absolute'
 
   return (
     <>
       {/* 토스트 알림 */}
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-lg
+        <div className={`${pos} top-4 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-lg
           bg-white/95 text-gray-900 text-sm font-medium shadow-lg
-          animate-[fadeIn_0.2s_ease-out]">
+          animate-[fadeIn_0.2s_ease-out]`}>
           {toast}
         </div>
       )}
 
-      {/* 최소화된 광고 버튼들 — 우측 하단 */}
+      {/* 최소화된 광고 버튼들 — 플레이어 우하단 */}
       {minimizedItems.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-[55] flex flex-col gap-2">
+        <div className={`${pos} bottom-12 right-4 z-[55] flex flex-col gap-2`}>
           {minimizedItems.map((item) => (
             <div key={item.ad.vod_id} className="flex gap-1.5">
               <button
@@ -175,12 +184,12 @@ export default function ShoppingAdPopup({
         </div>
       )}
 
-      {/* 팝업 광고들 — 우측 하단 */}
+      {/* 팝업 광고들 — 플레이어 우하단 */}
       {visibleItems.map((item, idx) => (
         <div
           key={item.ad.vod_id}
-          className="fixed z-[55] animate-[slideUp_0.3s_ease-out]"
-          style={{ bottom: `${80 + idx * 200}px`, right: '16px' }}
+          className={`${pos} z-[55] animate-[slideUp_0.3s_ease-out]`}
+          style={{ bottom: `${48 + idx * 200}px`, right: '16px' }}
         >
           {item.ad.ad_type === 'local_gov' ? (
             <LocalGovPopup ad={item.ad} onDismiss={handleDismiss} />
