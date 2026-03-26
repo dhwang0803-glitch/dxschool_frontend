@@ -1,7 +1,12 @@
 'use client'
 import { useEffect, useRef, useCallback, useState } from 'react'
 
-const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
+function getWsBase() {
+  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  return apiUrl.replace(/^http/, 'ws')
+}
+const WS_BASE = getWsBase()
 
 export type AdPopup = {
   type: 'ad_popup'
