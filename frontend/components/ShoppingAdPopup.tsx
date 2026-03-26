@@ -189,9 +189,9 @@ function LocalGovPopup({ ad, onDismiss }: { ad: AdPopup; onDismiss: (id: string)
   return (
     <div className="w-72 rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900">
       {/* GIF/이미지 */}
-      {ad.data.image_url && (
+      {(ad.data.ad_image_url || ad.data.image_url) && (
         <img
-          src={ad.data.image_url}
+          src={ad.data.ad_image_url || ad.data.image_url}
           alt={ad.data.product_name || '축제 광고'}
           className="w-full h-40 object-cover"
         />
