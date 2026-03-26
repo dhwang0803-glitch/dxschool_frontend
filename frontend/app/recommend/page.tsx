@@ -62,6 +62,7 @@ function PatternSection({ pattern, active }: { pattern: Pattern; active: boolean
 export default function RecommendPage() {
   const [topVod, setTopVod] = useState<VOD | null>(null)
   const [patterns, setPatterns] = useState<Pattern[]>([])
+  const [source, setSource] = useState<'personalized' | 'popular_fallback' | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -70,6 +71,9 @@ export default function RecommendPage() {
       if (!userId) { setLoading(false); return }
       try {
         const data = await getRecommend(userId)
+        if (data.source) {
+          setSource(data.source)
+        }
         if (data.top_vod) {
           setTopVod({
             series_id: data.top_vod.series_id,
@@ -123,7 +127,9 @@ export default function RecommendPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
           <div className="relative pb-16 px-10">
-            <span className="text-xs text-blue-400 font-semibold">오늘의 TOP 추천</span>
+            <span className={`text-xs font-semibold ${source === 'popular_fallback' ? 'text-amber-400' : 'text-blue-400'}`}>
+              {source === 'popular_fallback' ? '지금 인기 있는 콘텐츠' : '오늘의 TOP 추천'}
+            </span>
             <h2 className="text-white text-5xl font-bold mt-1">{topVod.asset_nm}</h2>
           </div>
         </Link>
