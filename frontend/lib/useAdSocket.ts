@@ -1,7 +1,12 @@
 'use client'
 import { useEffect, useRef, useCallback, useState } from 'react'
 
-const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
+function getWsBase() {
+  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  return apiUrl.replace(/^http/, 'ws')
+}
+const WS_BASE = getWsBase()
 
 export type AdPopup = {
   type: 'ad_popup'
@@ -34,10 +39,19 @@ export function useAdSocket(userId: string | null) {
   const [lastResponse, setLastResponse] = useState<AdResponse | null>(null)
   const [lastAlert, setLastAlert] = useState<ReservationAlert | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const retriesRef = useRef(0)
+  const MAX_RETRIES = 10
 
   const connect = useCallback(() => {
     if (!userId) return
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) {
+      wsRef.current.close()
+    }
     const ws = new WebSocket(`${WS_BASE}/ad/popup?user_id=${encodeURIComponent(userId)}`)
+
+    ws.onopen = () => {
+      retriesRef.current = 0
+    }
 
     ws.onmessage = (e) => {
       try {
@@ -57,7 +71,11 @@ export function useAdSocket(userId: string | null) {
 
     ws.onclose = () => {
       wsRef.current = null
-      reconnectTimer.current = setTimeout(connect, 3000)
+      if (retriesRef.current < MAX_RETRIES) {
+        retriesRef.current++
+        const delay = Math.min(3000 * Math.pow(2, retriesRef.current - 1), 30000)
+        reconnectTimer.current = setTimeout(connect, delay)
+      }
     }
 
     ws.onerror = () => ws.close()
