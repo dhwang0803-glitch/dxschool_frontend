@@ -36,18 +36,26 @@ export default function ShoppingAdPopup({
 
       if (!autoTimers.current[ad.vod_id]) {
         autoTimers.current[ad.vod_id] = setTimeout(() => {
-          setItems((prev) =>
-            prev.map((i) =>
-              i.ad.vod_id === ad.vod_id && i.state === 'visible'
-                ? { ...i, state: 'minimized' }
-                : i
+          setItems((prev) => {
+            const item = prev.find((i) => i.ad.vod_id === ad.vod_id)
+            if (!item || item.state !== 'visible') return prev
+            // 축제(local_gov)는 최소화 후 10초 뒤 자동 dismiss
+            if (ad.ad_type === 'local_gov') {
+              autoTimers.current[`${ad.vod_id}_dismiss`] = setTimeout(() => {
+                setItems((p) => p.filter((i) => i.ad.vod_id !== ad.vod_id))
+                onRemove(ad.vod_id)
+                delete autoTimers.current[`${ad.vod_id}_dismiss`]
+              }, 10000)
+            }
+            return prev.map((i) =>
+              i.ad.vod_id === ad.vod_id ? { ...i, state: 'minimized' } : i
             )
-          )
+          })
           delete autoTimers.current[ad.vod_id]
         }, 10000)
       }
     })
-  }, [ads])
+  }, [ads, onRemove])
 
   // 서버 응답 처리 (시청예약 성공/실패)
   useEffect(() => {
@@ -108,6 +116,11 @@ export default function ShoppingAdPopup({
   }, [onAction])
 
   const handleReopen = useCallback((vodId: string) => {
+    // 축제 자동 dismiss 타이머 취소
+    if (autoTimers.current[`${vodId}_dismiss`]) {
+      clearTimeout(autoTimers.current[`${vodId}_dismiss`])
+      delete autoTimers.current[`${vodId}_dismiss`]
+    }
     setItems((prev) =>
       prev.map((i) => (i.ad.vod_id === vodId ? { ...i, state: 'visible' } : i))
     )
