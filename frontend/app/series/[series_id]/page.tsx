@@ -152,21 +152,26 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     setPlayingEpisode(episodeTitle)
     playingEpisodeRef.current = episodeTitle
 
-    try {
-      const vodDetail = await getVODDetail(episodeTitle)
-      if (vodDetail?.youtube_url) {
-        const videoId = vodDetail.youtube_url.split('/embed/')[1]
-        if (videoId) {
-          initYouTubePlayer(videoId)
-          return
+    // 에피소드의 asset_id로 VOD 상세 조회
+    const ep = episodes.find((e: any) => e.episode_title === episodeTitle)
+    const assetId = ep?.asset_id
+
+    if (assetId) {
+      try {
+        const vodDetail = await getVODDetail(assetId)
+        if (vodDetail?.youtube_url) {
+          const videoId = vodDetail.youtube_url.split('/embed/')[1]
+          if (videoId) {
+            initYouTubePlayer(videoId)
+            return
+          }
         }
+      } catch {
+        // VOD 상세 조회 실패
       }
-    } catch {
-      // getVODDetail 실패 — asset_id 불일치 가능성
     }
 
     // youtube_url을 못 가져온 경우: 히어로에 에피소드 포스터 표시
-    const ep = episodes.find((e: any) => e.episode_title === episodeTitle)
     if (ep?.poster_url) setPosterUrl(ep.poster_url)
     setPlaying(false)
     setPlayerLoading(false)
