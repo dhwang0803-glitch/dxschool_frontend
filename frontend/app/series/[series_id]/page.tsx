@@ -3,7 +3,9 @@ import { useState, use, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import PosterCard from '@/components/PosterCard'
+import ShoppingAdPopup from '@/components/ShoppingAdPopup'
 import { VOD, isImageUrl, getFallbackGradient } from '@/lib/types'
+import { useAdSocket } from '@/lib/useAdSocket'
 import { getEpisodes, getProgress, getPurchaseCheck, getSimilar, addWishlist, removeWishlist, getVODDetail, postEpisodeProgress } from '@/lib/api'
 
 declare global {
@@ -43,6 +45,15 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const playingEpisodeRef = useRef<string | null>(null)
   const autoplayRef = useRef(false)
 
+  // 광고 팝업 WebSocket
+  const [adUserId, setAdUserId] = useState<string | null>(null)
+  useEffect(() => {
+    setAdUserId(localStorage.getItem('user_id'))
+  }, [])
+  const { ads, lastResponse, lastAlert, sendPlaybackUpdate, sendAction, removeAd, setLastResponse, setLastAlert } = useAdSocket(adUserId)
+  const playbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const currentAssetIdRef = useRef<string | null>(null)
+
   // 로컬 진행률 업데이트 (API 재조회 없이 즉시 반영)
   const updateLocalProgress = useCallback((episodeTitle: string, rate: number) => {
     setProgress((prev: any) => {
@@ -62,6 +73,26 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
       heartbeatRef.current = null
     }
   }, [])
+
+  const stopPlaybackTimer = useCallback(() => {
+    if (playbackTimerRef.current) {
+      clearInterval(playbackTimerRef.current)
+      playbackTimerRef.current = null
+    }
+  }, [])
+
+  const startPlaybackTimer = useCallback(() => {
+    stopPlaybackTimer()
+    playbackTimerRef.current = setInterval(() => {
+      const player = playerRef.current
+      const assetId = currentAssetIdRef.current
+      if (!player || !assetId) return
+      try {
+        const current = player.getCurrentTime()
+        if (current) sendPlaybackUpdate(assetId, Math.round(current))
+      } catch { /* ignore */ }
+    }, 500)
+  }, [stopPlaybackTimer, sendPlaybackUpdate])
 
   const startHeartbeat = useCallback(() => {
     stopHeartbeat()
@@ -110,8 +141,10 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
           onStateChange: (e: any) => {
             if (e.data === window.YT.PlayerState.PLAYING) {
               startHeartbeat()
+              startPlaybackTimer()
             } else {
               stopHeartbeat()
+              stopPlaybackTimer()
               if (e.data === window.YT.PlayerState.ENDED && playingEpisodeRef.current) {
                 const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
                 if (token) {
@@ -143,7 +176,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         window.onYouTubeIframeAPIReady = initPlayer
       }
     }, 200)
-  }, [seriesNm, startHeartbeat, stopHeartbeat, updateLocalProgress])
+  }, [seriesNm, startHeartbeat, stopHeartbeat, startPlaybackTimer, stopPlaybackTimer, updateLocalProgress])
 
   // 에피소드 재생 시작
   const playEpisode = useCallback(async (episodeTitle: string) => {
@@ -155,6 +188,8 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     // 에피소드의 asset_id로 VOD 상세 조회
     const ep = episodes.find((e: any) => e.episode_title === episodeTitle)
     const assetId = ep?.asset_id
+
+    currentAssetIdRef.current = assetId || null
 
     if (assetId) {
       try {
@@ -231,12 +266,13 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   useEffect(() => {
     return () => {
       stopHeartbeat()
+      stopPlaybackTimer()
       if (playerRef.current) {
         playerRef.current.destroy()
         playerRef.current = null
       }
     }
-  }, [stopHeartbeat])
+  }, [stopHeartbeat, stopPlaybackTimer])
 
   const toggleWishlist = async () => {
     try {
@@ -266,6 +302,17 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
 
   return (
     <main className="bg-black min-h-screen pb-16">
+      {/* 광고 팝업 */}
+      <ShoppingAdPopup
+        ads={ads}
+        lastResponse={lastResponse}
+        lastAlert={lastAlert}
+        onAction={sendAction}
+        onRemove={removeAd}
+        onClearResponse={() => setLastResponse(null)}
+        onClearAlert={() => setLastAlert(null)}
+      />
+
       {/* 히어로 배너 — 포스터 또는 YouTube 플레이어 */}
       <div ref={heroRef} className="relative w-full bg-black" style={{ aspectRatio: '16/9', maxHeight: '540px' }}>
         {playing && !playerError ? (
