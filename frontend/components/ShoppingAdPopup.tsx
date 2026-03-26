@@ -221,9 +221,7 @@ function SeasonalMarketPopup({
   onDismiss: (id: string) => void
 }) {
   const productName = ad.data.product_name || '상품'
-  const channel = ad.data.channel || '25번'
-  const popupText = ad.data.popup_text_live || ad.data.popup_text_scheduled
-    || `채널 ${channel} 제철장터에서 ${productName} 판매 중입니다`
+  const popupText = `지금 제철장터에서 ${productName} 판매 중입니다`
 
   return (
     <div className="w-72 rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900">
@@ -233,7 +231,7 @@ function SeasonalMarketPopup({
           <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-bold">
             제철장터
           </span>
-          <span className="text-white/40 text-[10px]">CH {channel}</span>
+          <span className="text-white/40 text-[10px]">CH 25</span>
         </div>
 
         {/* 메시지 */}
