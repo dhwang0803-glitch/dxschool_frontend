@@ -54,6 +54,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const playbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const currentAssetIdRef = useRef<string | null>(null)
 
+
   // 로컬 진행률 업데이트 (API 재조회 없이 즉시 반영)
   const updateLocalProgress = useCallback((episodeTitle: string, rate: number) => {
     setProgress((prev: any) => {
@@ -302,17 +303,6 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
 
   return (
     <main className="bg-black min-h-screen pb-16">
-      {/* 광고 팝업 */}
-      <ShoppingAdPopup
-        ads={ads}
-        lastResponse={lastResponse}
-        lastAlert={lastAlert}
-        onAction={sendAction}
-        onRemove={removeAd}
-        onClearResponse={() => setLastResponse(null)}
-        onClearAlert={() => setLastAlert(null)}
-      />
-
       {/* 히어로 배너 — 포스터 또는 YouTube 플레이어 */}
       <div ref={heroRef} className="relative w-full bg-black" style={{ aspectRatio: '16/9', maxHeight: '540px' }}>
         {playing && !playerError ? (
@@ -329,6 +319,16 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                 {playingEpisode}
               </div>
             )}
+            {/* 광고 팝업 — 플레이어 안쪽 */}
+            <ShoppingAdPopup
+              ads={ads}
+              lastResponse={lastResponse}
+              lastAlert={lastAlert}
+              onAction={sendAction}
+              onRemove={removeAd}
+              onClearResponse={() => setLastResponse(null)}
+              onClearAlert={() => setLastAlert(null)}
+            />
           </div>
         ) : (
           /* 포스터 모드 */

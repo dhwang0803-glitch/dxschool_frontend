@@ -10,10 +10,19 @@ const WS_BASE = getWsBase()
 
 export type AdPopup = {
   type: 'ad_popup'
-  ad_type: 'local_gov' | 'seasonal_market'
+  ad_type: 'local_gov_popup' | 'local_gov' | 'seasonal_market'
   vod_id: string
   time_sec: number
-  data: Record<string, any>
+  data: {
+    ad_image_url?: string | null
+    product_name?: string | null
+    channel?: string | null
+    start_time?: string | null
+    end_time?: string | null
+    broadcast_date?: string | null
+    score?: number
+    [key: string]: any
+  }
 }
 
 export type AdResponse = {

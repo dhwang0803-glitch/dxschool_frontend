@@ -2,128 +2,112 @@
 
 ## 작업 내용
 
-### Shopping_Ad 광고 팝업 프론트엔드 구현
+### Shopping_Ad 광고 팝업 프론트엔드 구현 + 버그 수정 + 위치/전체화면 대응
 
 `development` 브랜치에서 `feat/shopping-ad-popup` 브랜치를 생성하여 작업.
 
-백엔드(`dxshcool` 레포) Shopping_Ad 파이프라인이 생성한 광고 데이터를
-프론트엔드에서 WebSocket으로 수신하여 팝업으로 표시하는 기능 구현.
-
 ---
 
-## 신규 파일
+## PR 이력
 
-| 파일 | 역할 |
-|------|------|
-| `frontend/lib/useAdSocket.ts` | WebSocket 연결 훅 — 연결/재연결, 메시지 송수신 |
-| `frontend/components/ShoppingAdPopup.tsx` | 광고 팝업 컴포넌트 — local_gov + seasonal_market 2종 |
+| PR | 제목 | 상태 |
+|----|------|------|
+| #8 | feat: Shopping_Ad 광고 팝업 WebSocket 연동 | MERGED |
+| #9 | fix: WebSocket URL 자동 파생 + 재연결 안정화 | MERGED |
+| #11 | fix: 축제 GIF 필드명 + 제철장터 텍스트 + 팝업 위치 + 전체화면 | OPEN |
+
+---
 
 ## 수정 파일
 
-| 파일 | 변경 내용 |
-|------|-----------|
-| `frontend/app/series/[series_id]/page.tsx` | WebSocket 훅 연결, playback_update 전송, 팝업 렌더링 통합 |
-| `frontend/app/globals.css` | `slideUp`, `fadeIn` 키프레임 애니메이션 추가 |
+| 파일 | 역할 |
+|------|------|
+| `frontend/lib/useAdSocket.ts` | WebSocket 연결 훅 (신규) |
+| `frontend/components/ShoppingAdPopup.tsx` | 광고 팝업 컴포넌트 (신규) |
+| `frontend/app/series/[series_id]/page.tsx` | 플레이어 안쪽에 팝업 통합 (수정) |
+| `frontend/app/globals.css` | slideUp/fadeIn 애니메이션 (수정) |
+| `CLAUDE.md` | 브랜치 규칙 + 백엔드 요청 사항 (수정) |
+| `docs/SHOPPING_AD_POPUP_SPEC.md` | 설계 문서 (신규) |
 
 ---
 
-## 구현 상세
+## 버그 수정 이력
 
-### 1. WebSocket 연결 (`useAdSocket.ts`)
+### 1. WebSocket URL localhost 고정 (PR #9)
+- **증상**: Cloud Run 배포 시 `ws://localhost:8000`으로 연결 시도 → ERR_CONNECTION_REFUSED
+- **원인**: `NEXT_PUBLIC_WS_URL` 환경변수 미설정 시 기본값이 localhost
+- **수정**: `NEXT_PUBLIC_API_URL`에서 `http→ws`(`https→wss`) 자동 변환
 
-- 엔드포인트: `ws://{host}/ad/popup?user_id={sha2_hash}`
-- 환경변수: `NEXT_PUBLIC_WS_URL` (기본값 `ws://localhost:8000`)
-- 재연결: 연결 끊김 시 3초 후 자동 재연결
-- 수신 메시지 3종 처리:
-  - `ad_popup` → 광고 팝업 표시
-  - `ad_response` → 시청예약 성공/실패 응답
-  - `reservation_alert` → 시청예약 알림 (방송 시작 시)
+### 2. WebSocket 재연결 폭주 (PR #9)
+- **증상**: 서버 거부 시 3초마다 무한 재시도, 콘솔에 에러 폭주
+- **수정**: exponential backoff (3초→6초→12초→...최대 30초) + 최대 10회 제한
 
-### 2. Playback Update 전송
+### 3. 축제 GIF 미표시 (PR #11)
+- **증상**: 축제 팝업에 텍스트만 나오고 GIF가 안 보임
+- **원인**: 프론트엔드 `ad.data.image_url` vs 백엔드 `ad.data.ad_image_url` 필드명 불일치
+- **수정**: `ad_image_url` 필드로 접근하도록 변경
 
-- VOD 재생 중 **0.5초 간격**으로 서버에 현재 재생 위치 전송
-- 메시지 형식: `{"type": "playback_update", "vod_id": "xxx", "time_sec": 120}`
-- YouTube 플레이어 상태 연동: PLAYING 시 타이머 시작, PAUSED/ENDED 시 타이머 중지
+### 4. 제철장터 텍스트 중복 (PR #11)
+- **증상**: "채널 제철장터 제철장터에서 아산 포기김치 판매 중입니다"
+- **원인**: channel 필드값("제철장터")을 본문에 중복 사용
+- **수정**: 고정 포맷 "지금 제철장터에서 {상품명} 판매 중입니다" + 헤더 "CH 25"
 
-### 3. 팝업 컴포넌트 (`ShoppingAdPopup.tsx`)
+### 5. 팝업 위치 (PR #11)
+- **증상**: 팝업이 페이지 우하단에 뜸 → 스크롤하면 안 보임
+- **수정**: `fixed` → `absolute`, ShoppingAdPopup을 플레이어 div 안쪽으로 이동
 
-#### 지자체 축제 팝업 (local_gov)
+### 6. 전체화면 대응 (PR #11)
+- **증상**: 전체화면 시 팝업이 플레이어 뒤에 가려짐
+- **수정**: `fullscreenchange` 이벤트 감지 → 전체화면일 때 `absolute` → `fixed` 전환
 
-- 축제 GIF/이미지 + 축제명 + 설명
-- 버튼 없음 (정보 제공용)
-- 10초 후 자동 최소화
+### 7. 축제 팝업 불필요한 텍스트 (PR #11)
+- **증상**: GIF에 축제명+일정이 이미 포함되어 있는데 별도 텍스트도 표시
+- **수정**: `popup_title`/`popup_body`/`product_name` 텍스트 제거, GIF만 표시
 
-#### 제철장터 팝업 (seasonal_market)
-
-- 제철장터 라벨 + 채널 번호 + 상품 메시지
-- [시청 예약] 버튼 → `reserve_watch` 액션 전송
-- [닫기] 버튼 → `dismiss` 액션 전송
-- 10초 미응답 → 자동 최소화
-
-#### 최소화 상태
-
-- 우측 하단에 파란색(다시 열기) + 빨간색(완전 제거) 작은 원형 버튼
-- 파란색 클릭 → `reopen` 액션 전송
-- 빨간색 클릭 → `dismiss` 액션 전송 + 팝업 완전 제거
-
-#### 토스트 알림
-
-- 시청예약 성공/실패 메시지, 시청예약 알림 수신 시 상단 중앙에 토스트 표시
-- 3초 후 자동 제거
-
-### 4. 시리즈 상세 페이지 통합
-
-- `adUserId`: `useEffect`로 클라이언트에서만 `localStorage.getItem('user_id')` 읽기 (SSR hydration 불일치 방지)
-- `currentAssetIdRef`: 에피소드 재생 시 `asset_id` 저장 → playback_update에 사용
-- cleanup: 컴포넌트 언마운트 시 heartbeat + playbackTimer 모두 정리
+### 8. 축제 팝업 자동 dismiss (PR #11)
+- **요구사항**: 축제 팝업은 최소화 후 10초 뒤 자동 제거
+- **수정**: local_gov 타입은 visible(10초) → minimized(10초) → 자동 dismiss
 
 ---
 
-## 서버 메시지 프로토콜
+## 최종 팝업 동작
 
-### Server → Client
-
-```json
-// 광고 팝업
-{"type": "ad_popup", "ad_type": "local_gov|seasonal_market", "vod_id": "...", "time_sec": 120, "data": {...}}
-
-// 액션 응답
-{"type": "ad_response", "action": "reserve_watch", "vod_id": "...", "message": "시청예약되었습니다"}
-{"type": "ad_response", "action": "reserve_watch", "vod_id": "...", "error": "시청예약에 실패했습니다"}
-
-// 시청예약 알림
-{"type": "reservation_alert", "channel": 25, "program_name": "...", "message": "..."}
+### 축제 (local_gov)
 ```
-
-### Client → Server
-
-```json
-// 재생 위치 업데이트 (0.5초 간격)
-{"type": "playback_update", "vod_id": "...", "time_sec": 120}
-
-// 광고 액션
-{"type": "ad_action", "action": "reserve_watch|dismiss|minimize|reopen", "vod_id": "..."}
+GIF 표시 (10초) → 최소화 [🔵reopen / 🔴dismiss] (10초) → 자동 제거
+                                    │
+                                    └→ reopen 클릭 시 dismiss 타이머 취소 → 다시 GIF 표시
 ```
+- GIF만 표시 (텍스트 없음, 버튼 없음)
+- GIF에 축제명+일정 포함 (520x300)
+- `data.ad_image_url`로 OCI Object Storage URL 참조
+
+### 제철장터 (seasonal_market)
+```
+팝업 표시 (10초) → 최소화 [🔵reopen / 🔴dismiss]
+      │
+      ├→ [시청 예약] → reserve_watch 전송 → 서버 응답 토스트 → 2초 후 제거
+      └→ [닫기] → dismiss 전송 → 즉시 제거
+```
+- 헤더: `[제철장터] CH 25`
+- 본문: `지금 제철장터에서 {상품명} 판매 중입니다`
+
+### 팝업 위치
+- **일반 모드**: 플레이어 컨테이너 기준 `absolute` 우하단 (bottom-48, right-16)
+- **전체화면**: `fixed` 우하단으로 전환 → 전체화면 위에 표시
+
+### WebSocket
+- URL: `NEXT_PUBLIC_API_URL`에서 `http→ws` 자동 파생
+- 재연결: exponential backoff (3초~30초) + 최대 10회
+- playback_update: 0.5초 간격, YouTube PLAYING 상태에서만
 
 ---
 
-## 백엔드 연동 필요 사항
+## 백엔드 연동 상태
 
-| 항목 | 상태 | 설명 |
-|------|------|------|
-| `serving.shopping_ad` 테이블 | 완료 | DDL 실행 + 10건 데이터 적재 완료 |
-| `/ad/popup` WebSocket 스켈레톤 | 완료 | 연결/액션 처리 구현됨 |
-| `playback_update` 수신 → DB 조회 → `ad_popup` 전송 | **미구현** | 백엔드에서 추가 구현 필요 |
-| `reservation_checker` 알림 push | **미구현** | 방송 시작 시 예약 유저에게 알림 전송 |
-
----
-
-## 빌드 확인
-
-- `npm run build` 성공 (TypeScript 오류 없음)
-- Next.js 16.2.0 (Turbopack)
-
-## 점검 및 수정 사항
-
-1. **`adUserId` SSR hydration 불일치** — 렌더링 중 `localStorage` 직접 접근 → `useState` + `useEffect`로 수정
-2. **`initYouTubePlayer` 의존성 누락** — `startPlaybackTimer`, `stopPlaybackTimer`를 `useCallback` 의존성 배열에 추가
+| 항목 | 상태 |
+|------|------|
+| `serving.shopping_ad` DB | 완료 (10건) |
+| `/ad/popup` WebSocket | 완료 (PR #88 merged) |
+| 광고 타이밍 수정 (YOLO 프레임 기준) | 백엔드 PR 완료 |
+| 프론트엔드 팝업 | PR #11 (배포 대기) |
