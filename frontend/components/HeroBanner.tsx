@@ -31,7 +31,7 @@ export default function HeroBanner({ vods }: { vods: VOD[] }) {
             } ${!hasImage ? `bg-gradient-to-br ${getFallbackGradient(v.asset_nm)}` : ''}`}
           >
             {hasImage && (
-              <img src={bgUrl!} alt={v.asset_nm} className="w-full h-full object-cover" />
+              <img src={bgUrl!} alt={v.asset_nm} className="absolute inset-0 w-full h-full object-cover" />
             )}
           </div>
         )
