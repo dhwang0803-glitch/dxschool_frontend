@@ -118,5 +118,14 @@ export function useAdSocket(userId: string | null) {
     setAds((prev) => prev.filter((a) => a.vod_id !== vodId))
   }, [])
 
-  return { ads, lastResponse, lastAlert, sendPlaybackUpdate, sendAction, removeAd, setLastResponse, setLastAlert }
+  // WebSocket 강제 재연결 (에피소드 전환 시 _sent_ad_ids 초기화용)
+  const reconnect = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+    setTimeout(connect, 300)
+  }, [connect])
+
+  return { ads, lastResponse, lastAlert, sendPlaybackUpdate, sendAction, removeAd, setLastResponse, setLastAlert, reconnect }
 }

@@ -50,9 +50,12 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   useEffect(() => {
     setAdUserId(localStorage.getItem('user_id'))
   }, [])
-  const { ads, lastResponse, lastAlert, sendPlaybackUpdate, sendAction, removeAd, setLastResponse, setLastAlert } = useAdSocket(adUserId)
+  const { ads, lastResponse, lastAlert, sendPlaybackUpdate, sendAction, removeAd, setLastResponse, setLastAlert, reconnect } = useAdSocket(adUserId)
   const playbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const currentAssetIdRef = useRef<string | null>(null)
+  const playbackStartTimeRef = useRef<number>(0) // 재생 시작 시각 (광고 grace period용)
+  const lastSentTimeRef = useRef<number>(-1) // 마지막 전송 time_sec (seek 감지용)
+  const seekGraceUntilRef = useRef<number>(0) // seek 후 grace period 끝나는 시각
 
 
   // 로컬 진행률 업데이트 (API 재조회 없이 즉시 반영)
@@ -83,17 +86,29 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   }, [])
 
   const startPlaybackTimer = useCallback(() => {
-    stopPlaybackTimer()
+    // 이미 타이머가 돌고 있으면 재시작하지 않음 (pause/buffer 후 resume 시 grace 리셋 방지)
+    if (playbackTimerRef.current) return
     playbackTimerRef.current = setInterval(() => {
       const player = playerRef.current
       const assetId = currentAssetIdRef.current
       if (!player || !assetId) return
+      // grace period 중이면 전송 안 함
+      if (Date.now() < seekGraceUntilRef.current) return
       try {
         const current = player.getCurrentTime()
-        if (current) sendPlaybackUpdate(assetId, Math.round(current))
+        if (!current) return
+        const timeSec = Math.round(current)
+        // seek 감지: 이전 전송 시간과 30초 이상 차이나면 seek로 판단 → 3초 grace (최초 전송 시 제외)
+        if (lastSentTimeRef.current > 0 && Math.abs(timeSec - lastSentTimeRef.current) > 30) {
+          seekGraceUntilRef.current = Date.now() + 3000
+          lastSentTimeRef.current = timeSec
+          return
+        }
+        lastSentTimeRef.current = timeSec
+        sendPlaybackUpdate(assetId, timeSec)
       } catch { /* ignore */ }
     }, 500)
-  }, [stopPlaybackTimer, sendPlaybackUpdate])
+  }, [sendPlaybackUpdate])
 
   const startHeartbeat = useCallback(() => {
     stopHeartbeat()
@@ -136,7 +151,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     const initPlayer = () => {
       playerRef.current = new window.YT.Player('yt-hero-player', {
         videoId,
-        playerVars: { autoplay: 1, rel: 0 },
+        playerVars: { autoplay: 1, rel: 0, fs: 0 },
         events: {
           onReady: () => setPlayerLoading(false),
           onStateChange: (e: any) => {
@@ -185,6 +200,13 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     setActiveEpisode(episodeTitle)
     setPlayingEpisode(episodeTitle)
     playingEpisodeRef.current = episodeTitle
+
+    // 에피소드 전환: 기존 광고 + 타이머 초기화 + WebSocket 재연결 (_sent_ad_ids 리셋)
+    ads.forEach((ad) => removeAd(ad.vod_id))
+    reconnect()
+    stopPlaybackTimer()
+    lastSentTimeRef.current = -1
+    seekGraceUntilRef.current = Date.now() + 5000 // 최초 5초 grace
 
     // 에피소드의 asset_id로 VOD 상세 조회
     const ep = episodes.find((e: any) => e.episode_title === episodeTitle)
@@ -306,8 +328,8 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
       {/* 히어로 배너 — 포스터 또는 YouTube 플레이어 */}
       <div ref={heroRef} className="relative w-full bg-black" style={{ aspectRatio: '16/9', maxHeight: '540px' }}>
         {playing && !playerError ? (
-          /* YouTube 플레이어 모드 */
-          <div className="absolute inset-0 bg-black">
+          /* YouTube 플레이어 모드 — 컨테이너 전체화면 (팝업 오버레이 유지) */
+          <div id="player-container" className="absolute inset-0 bg-black">
             {playerLoading && (
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="text-white/50">로딩 중...</div>
@@ -319,6 +341,25 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                 {playingEpisode}
               </div>
             )}
+            {/* 커스텀 전체화면 버튼 */}
+            <button
+              onClick={() => {
+                const container = document.getElementById('player-container')
+                if (!container) return
+                if (document.fullscreenElement) {
+                  document.exitFullscreen()
+                } else {
+                  container.requestFullscreen()
+                }
+              }}
+              className="absolute bottom-3 right-3 z-[56] w-8 h-8 rounded bg-black/60 hover:bg-black/80
+                flex items-center justify-center text-white/70 hover:text-white transition-colors"
+              title="전체화면"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+              </svg>
+            </button>
             {/* 광고 팝업 — 플레이어 안쪽 */}
             <ShoppingAdPopup
               ads={ads}
