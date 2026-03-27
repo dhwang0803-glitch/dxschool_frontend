@@ -93,7 +93,7 @@ frontend/
 - 버튼: [닫기] 1개
 - `ad.data.ad_image_url`: GIF URL (OCI Object Storage, 520x300 가로형)
 - `ad.data.product_name`: 축제명 (alt 텍스트용)
-- 크기: 520x300 고정, 좁은 화면에서 `maxWidth: calc(100vw - 32px)` 반응형
+- 크기: 340x196 고정, 좁은 화면에서 `maxWidth: calc(100vw - 32px)` 반응형
 
 ### 제철장터 (seasonal_market) — 방송 중/예정 2종
 
@@ -145,6 +145,25 @@ frontend/
    ↑     ↑
   reopen dismiss
 ```
+
+---
+
+## 광고 타이밍 제어
+
+### playback_update 전송 규칙
+- 0.5초마다 `playback_update` 전송 (vod_id + time_sec)
+- **에피소드 시작 시**: 5초 grace period (이어보기 시 광고 즉시 노출 방지)
+- **seek 감지**: 이전 전송 시간과 30초 이상 차이 → 3초 grace period
+- pause/buffer 후 resume 시 타이머 리셋 안 함 (grace 중복 방지)
+
+### 에피소드 전환 시
+- 기존 광고 전부 제거
+- playback 타이머 정지 + 초기화
+- **WebSocket 재연결** (백엔드 `_sent_ad_ids` 초기화)
+
+### 전체화면
+- YouTube 기본 전체화면 버튼 비활성화 (`fs: 0`)
+- 커스텀 전체화면 버튼 (플레이어 우하단) → 컨테이너 전체화면 (팝업 오버레이 유지)
 
 ---
 
