@@ -26,14 +26,11 @@ export default function HeroBanner({ vods }: { vods: VOD[] }) {
         return (
           <div
             key={v.series_id}
-            className={`absolute inset-0 transition-opacity duration-700 ${
+            className={`absolute inset-0 transition-opacity duration-700 bg-cover bg-center bg-no-repeat ${
               i === current ? 'opacity-100' : 'opacity-0'
             } ${!hasImage ? `bg-gradient-to-br ${getFallbackGradient(v.asset_nm)}` : ''}`}
-          >
-            {hasImage && (
-              <img src={bgUrl!} alt={v.asset_nm} className="absolute inset-0 w-full h-full object-cover" />
-            )}
-          </div>
+            style={hasImage ? { backgroundImage: `url("${bgUrl}")` } : undefined}
+          />
         )
       })}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
