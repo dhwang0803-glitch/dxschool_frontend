@@ -39,6 +39,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const [activeEpisode, setActiveEpisode] = useState<string | null>(null)
 
   const playerRef = useRef<any>(null)
+  const playerWrapperRef = useRef<HTMLDivElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
   const episodeRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -134,8 +135,8 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     }, 30000)
   }, [seriesNm, stopHeartbeat, updateLocalProgress])
 
-  // YouTube 플레이어 초기화 (videoId로 히어로 영역에 재생)
-  const initYouTubePlayer = useCallback((videoId: string) => {
+  // YouTube 플레이어 초기화 (videoId로 히어로 영역에 재생, resumeRate가 있으면 해당 지점부터)
+  const initYouTubePlayer = useCallback((videoId: string, resumeRate?: number) => {
     stopHeartbeat()
     if (playerRef.current) {
       playerRef.current.destroy()
@@ -149,11 +150,30 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     }, 100)
 
     const initPlayer = () => {
+      // YouTube IFrame API가 대상 div를 iframe으로 교체하므로,
+      // React 렌더 트리 밖에서 DOM API로 직접 생성하여 충돌 방지
+      if (playerWrapperRef.current) {
+        playerWrapperRef.current.innerHTML = ''
+        const el = document.createElement('div')
+        el.id = 'yt-hero-player'
+        el.style.width = '100%'
+        el.style.height = '100%'
+        playerWrapperRef.current.appendChild(el)
+      }
       playerRef.current = new window.YT.Player('yt-hero-player', {
         videoId,
         playerVars: { autoplay: 1, rel: 0, fs: 0 },
         events: {
-          onReady: () => setPlayerLoading(false),
+          onReady: (e: any) => {
+              setPlayerLoading(false)
+              // 이어보기: 진행률이 있으면 해당 지점으로 seek
+              if (resumeRate && resumeRate > 0 && resumeRate < 100) {
+                const duration = e.target.getDuration()
+                if (duration) {
+                  e.target.seekTo(Math.floor(duration * resumeRate / 100), true)
+                }
+              }
+            },
           onStateChange: (e: any) => {
             if (e.data === window.YT.PlayerState.PLAYING) {
               startHeartbeat()
@@ -220,7 +240,9 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         if (vodDetail?.youtube_url) {
           const videoId = vodDetail.youtube_url.split('/embed/')[1]
           if (videoId) {
-            initYouTubePlayer(videoId)
+            // 해당 에피소드의 기존 진행률 조회 → 이어보기 지점 전달
+            const epProgress = progress?.episodes?.find((e: any) => e.episode_title === episodeTitle)
+            initYouTubePlayer(videoId, epProgress?.completion_rate)
             return
           }
         }
@@ -234,7 +256,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     setPlaying(false)
     setPlayerLoading(false)
     heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [episodes, initYouTubePlayer])
+  }, [episodes, progress, initYouTubePlayer])
 
   // 데이터 로드
   useEffect(() => {
@@ -330,12 +352,10 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         {playing && !playerError ? (
           /* YouTube 플레이어 모드 — 컨테이너 전체화면 (팝업 오버레이 유지) */
           <div id="player-container" className="absolute inset-0 bg-black">
-            {playerLoading && (
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <div className="text-white/50">로딩 중...</div>
-              </div>
-            )}
-            <div id="yt-hero-player" className="w-full h-full" />
+            <div className={`absolute inset-0 flex items-center justify-center z-10 ${playerLoading ? '' : 'hidden'}`}>
+              <div className="text-white/50">로딩 중...</div>
+            </div>
+            <div ref={playerWrapperRef} className="absolute inset-0" />
             {playingEpisode && (
               <div className="absolute top-3 right-3 z-10 px-3 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs">
                 {playingEpisode}
