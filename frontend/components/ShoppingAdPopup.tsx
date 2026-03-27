@@ -218,13 +218,13 @@ export default function ShoppingAdPopup({
 /* ── 지자체 축제 팝업 (local_gov_popup) — GIF 520x300 + [닫기] 버튼 ── */
 function LocalGovPopup({ ad, onDismiss }: { ad: AdPopup; onDismiss: (id: string) => void }) {
   return (
-    <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900" style={{ width: 520, maxWidth: 'calc(100vw - 32px)' }}>
+    <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900" style={{ width: 340, maxWidth: 'calc(100vw - 32px)' }}>
       {ad.data.ad_image_url && (
         <img
           src={ad.data.ad_image_url}
           alt={ad.data.product_name || '축제 광고'}
           className="w-full object-cover"
-          style={{ height: 300, maxHeight: '50vw' }}
+          style={{ height: 196 }}
         />
       )}
       <div className="p-2 flex justify-end">
