@@ -271,7 +271,11 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         let loadedEpisodes: any[] = []
 
         if (episodesRes.status === 'fulfilled' && episodesRes.value) {
-          loadedEpisodes = episodesRes.value.episodes || []
+          loadedEpisodes = (episodesRes.value.episodes || []).sort((a: any, b: any) => {
+            const numA = parseInt(a.episode_title.replace(/[^0-9]/g, ''), 10) || 0
+            const numB = parseInt(b.episode_title.replace(/[^0-9]/g, ''), 10) || 0
+            return numA - numB
+          })
           setEpisodes(loadedEpisodes)
           const firstEp = loadedEpisodes[0]
           if (firstEp?.poster_url) setPosterUrl(firstEp.poster_url)
