@@ -21,7 +21,8 @@ export default function HeroBanner({ vods }: { vods: VOD[] }) {
   return (
     <div className="relative w-full h-[480px] overflow-hidden">
       {vods.map((v, i) => {
-        const hasImage = isImageUrl(v.poster_url)
+        const bgUrl = v.backdrop_url || v.poster_url
+        const hasImage = isImageUrl(bgUrl)
         return (
           <div
             key={v.series_id}
@@ -30,7 +31,7 @@ export default function HeroBanner({ vods }: { vods: VOD[] }) {
             } ${!hasImage ? `bg-gradient-to-br ${getFallbackGradient(v.asset_nm)}` : ''}`}
           >
             {hasImage && (
-              <img src={v.poster_url!} alt={v.asset_nm} className="w-full h-full object-cover" />
+              <img src={bgUrl!} alt={v.asset_nm} className="w-full h-full object-cover" />
             )}
           </div>
         )

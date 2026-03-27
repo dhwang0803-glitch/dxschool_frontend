@@ -60,10 +60,19 @@ function PatternSection({ pattern, active }: { pattern: Pattern; active: boolean
 }
 
 export default function RecommendPage() {
-  const [topVod, setTopVod] = useState<VOD | null>(null)
+  const [topVods, setTopVods] = useState<VOD[]>([])
+  const [topCurrent, setTopCurrent] = useState(0)
   const [patterns, setPatterns] = useState<Pattern[]>([])
   const [source, setSource] = useState<'personalized' | 'popular_fallback' | null>(null)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (topVods.length === 0) return
+    const timer = setInterval(() => {
+      setTopCurrent(prev => (prev + 1) % topVods.length)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [topVods.length])
 
   useEffect(() => {
     async function load() {
@@ -75,11 +84,13 @@ export default function RecommendPage() {
           setSource(data.source)
         }
         if (data.top_vod) {
-          setTopVod({
-            series_id: data.top_vod.series_id,
-            asset_nm: data.top_vod.asset_nm,
-            poster_url: data.top_vod.poster_url,
-          })
+          const arr = Array.isArray(data.top_vod) ? data.top_vod : [data.top_vod]
+          setTopVods(arr.map((v: any) => ({
+            series_id: v.series_id,
+            asset_nm: v.asset_nm,
+            poster_url: v.poster_url,
+            backdrop_url: v.backdrop_url ?? null,
+          })))
         }
         if (data.patterns) {
           setPatterns(data.patterns.map((p: any) => ({
@@ -110,29 +121,53 @@ export default function RecommendPage() {
     )
   }
 
-  const hasTopImage = topVod && isImageUrl(topVod.poster_url)
-
   return (
     <main className="bg-black min-h-screen pb-16">
-      {/* 메인 배너 */}
-      {topVod && (
-        <Link
-          href={`/series/${encodeURIComponent(topVod.series_id)}`}
-          className={`relative w-full h-[480px] flex items-end overflow-hidden block
-            ${!hasTopImage ? `bg-gradient-to-br ${getFallbackGradient(topVod.asset_nm)}` : ''}`}
-        >
-          {hasTopImage && (
-            <img src={topVod.poster_url!} alt={topVod.asset_nm} className="absolute inset-0 w-full h-full object-cover" />
+      {/* 메인 배너 — top_vod 캐러셀 (4초 자동 전환) */}
+      {topVods.length > 0 && (
+        <div className="relative w-full h-[480px] overflow-hidden">
+          {topVods.map((v, i) => {
+            const bgUrl = v.backdrop_url || v.poster_url
+            const hasImage = isImageUrl(bgUrl)
+            return (
+              <Link
+                key={v.series_id}
+                href={`/series/${encodeURIComponent(v.series_id)}`}
+                className={`absolute inset-0 flex items-end transition-opacity duration-700
+                  ${!hasImage ? `bg-gradient-to-br ${getFallbackGradient(v.asset_nm)}` : ''}
+                  ${i === topCurrent ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+              >
+                {hasImage && (
+                  <img src={bgUrl!} alt={v.asset_nm} className="absolute inset-0 w-full h-full object-cover" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
+                <div className="relative pb-16 px-10">
+                  <span className={`text-xs font-semibold ${source === 'popular_fallback' ? 'text-amber-400' : 'text-blue-400'}`}>
+                    {source === 'popular_fallback' ? '지금 인기 있는 콘텐츠' : '오늘의 TOP 추천'}
+                  </span>
+                  <h2 className="text-white text-5xl font-bold mt-1">{v.asset_nm}</h2>
+                </div>
+              </Link>
+            )
+          })}
+          {topVods.length > 1 && (
+            <div className="absolute bottom-6 left-10 flex gap-2 z-10">
+              {topVods.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setTopCurrent(i)}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    i === topCurrent ? 'w-8 bg-white' : 'w-4 bg-white/30'
+                  }`}
+                />
+              ))}
+            </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
-          <div className="relative pb-16 px-10">
-            <span className={`text-xs font-semibold ${source === 'popular_fallback' ? 'text-amber-400' : 'text-blue-400'}`}>
-              {source === 'popular_fallback' ? '지금 인기 있는 콘텐츠' : '오늘의 TOP 추천'}
-            </span>
-            <h2 className="text-white text-5xl font-bold mt-1">{topVod.asset_nm}</h2>
+          <div className="absolute bottom-6 right-10 text-white/40 text-sm z-10">
+            {topCurrent + 1} / {topVods.length}
           </div>
-        </Link>
+        </div>
       )}
 
       {/* 패턴 섹션들 */}

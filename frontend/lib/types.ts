@@ -4,6 +4,7 @@ export type VOD = {
   series_id: string
   asset_nm: string
   poster_url: string | null
+  backdrop_url?: string | null
   genre?: string
   ct_cl?: string
   rating?: string
