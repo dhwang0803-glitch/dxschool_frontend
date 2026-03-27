@@ -14,12 +14,12 @@ export default function HeroBanner({ vods }: { vods: VOD[] }) {
     return () => clearInterval(timer)
   }, [vods.length])
 
-  if (vods.length === 0) return <div className="w-full h-[480px] bg-zinc-900" />
+  if (vods.length === 0) return <div className="w-full h-[40vw] min-h-[320px] max-h-[720px] bg-zinc-900" />
 
   const vod = vods[current]
 
   return (
-    <div className="relative w-full h-[480px] overflow-hidden">
+    <div className="relative w-full h-[40vw] min-h-[320px] max-h-[720px] overflow-hidden">
       {vods.map((v, i) => {
         const bgUrl = v.backdrop_url || v.poster_url
         const hasImage = isImageUrl(bgUrl)
