@@ -48,7 +48,7 @@ export default function ShoppingAdPopup({
             const item = prev.find((i) => i.ad.vod_id === ad.vod_id)
             if (!item || item.state !== 'visible') return prev
             // 축제(local_gov)는 최소화 후 10초 뒤 자동 dismiss
-            if (ad.ad_type === 'local_gov') {
+            if (ad.ad_type === 'local_gov_popup' || ad.ad_type === 'local_gov') {
               autoTimers.current[`${ad.vod_id}_dismiss`] = setTimeout(() => {
                 setItems((p) => p.filter((i) => i.ad.vod_id !== ad.vod_id))
                 onRemove(ad.vod_id)
@@ -135,6 +135,14 @@ export default function ShoppingAdPopup({
     onAction('reopen', vodId)
   }, [onAction])
 
+  const handleWatch = useCallback((vodId: string) => {
+    // 채널 25번(헬로비전 지역방송)으로 이동
+    onAction('watch', vodId)
+    // 팝업 닫기
+    setItems((prev) => prev.filter((i) => i.ad.vod_id !== vodId))
+    onRemove(vodId)
+  }, [onAction, onRemove])
+
   const handleReserve = useCallback((vodId: string) => {
     onAction('reserve_watch', vodId)
   }, [onAction])
@@ -189,13 +197,14 @@ export default function ShoppingAdPopup({
         <div
           key={item.ad.vod_id}
           className={`${pos} z-[55] animate-[slideUp_0.3s_ease-out]`}
-          style={{ bottom: `${48 + idx * 200}px`, right: '16px' }}
+          style={{ bottom: `${48 + idx * 360}px`, right: '16px' }}
         >
-          {item.ad.ad_type === 'local_gov' ? (
+          {item.ad.ad_type === 'local_gov_popup' || item.ad.ad_type === 'local_gov' ? (
             <LocalGovPopup ad={item.ad} onDismiss={handleDismiss} />
           ) : (
             <SeasonalMarketPopup
               ad={item.ad}
+              onWatch={handleWatch}
               onReserve={handleReserve}
               onDismiss={handleDismiss}
             />
@@ -206,31 +215,64 @@ export default function ShoppingAdPopup({
   )
 }
 
-/* ── 지자체 축제 팝업 (local_gov) — GIF에 축제명+일정 포함, 별도 텍스트 없음 ── */
+/* ── 지자체 축제 팝업 (local_gov_popup) — GIF 520x300 + [닫기] 버튼 ── */
 function LocalGovPopup({ ad, onDismiss }: { ad: AdPopup; onDismiss: (id: string) => void }) {
   return (
-    <div className="w-72 rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900">
+    <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900" style={{ width: 520, maxWidth: 'calc(100vw - 32px)' }}>
       {ad.data.ad_image_url && (
         <img
           src={ad.data.ad_image_url}
           alt={ad.data.product_name || '축제 광고'}
-          className="w-full object-contain"
+          className="w-full object-cover"
+          style={{ height: 300, maxHeight: '50vw' }}
         />
       )}
+      <div className="p-2 flex justify-end">
+        <button
+          onClick={() => onDismiss(ad.vod_id)}
+          className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 text-sm transition-colors"
+        >
+          닫기
+        </button>
+      </div>
     </div>
   )
 }
 
-/* ── 제철장터 팝업 (seasonal_market) ── */
+/* ── 제철장터 팝업 (seasonal_market) — 방송 중/예정 분기 ── */
 function SeasonalMarketPopup({
-  ad, onReserve, onDismiss,
+  ad, onWatch, onReserve, onDismiss,
 }: {
   ad: AdPopup
+  onWatch: (id: string) => void
   onReserve: (id: string) => void
   onDismiss: (id: string) => void
 }) {
   const productName = ad.data.product_name || '상품'
-  const popupText = `지금 제철장터에서 ${productName} 판매 중입니다`
+  const startTime = ad.data.start_time || null
+  const endTime = ad.data.end_time || null
+  const broadcastDate = ad.data.broadcast_date || null
+
+  // 방송 중 여부 판단: start_time ~ end_time 사이면 방송 중
+  const isOnAir = (() => {
+    if (!startTime || !endTime) return true // 시간 정보 없으면 기본 방송 중 처리
+    const now = new Date()
+    // 로컬 시간(KST) 기준 오늘 날짜
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    const d = String(now.getDate()).padStart(2, '0')
+    const todayStr = `${y}-${m}-${d}`
+    const start = new Date(`${broadcastDate || todayStr}T${startTime}`)
+    const end = new Date(`${broadcastDate || todayStr}T${endTime}`)
+    return now >= start && now <= end
+  })()
+
+  // 날짜 포맷: "3월 25일(수)" 형태
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr)
+    const days = ['일', '월', '화', '수', '목', '금', '토']
+    return `${d.getMonth() + 1}월 ${d.getDate()}일(${days[d.getDay()]})`
+  }
 
   return (
     <div className="w-72 rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900">
@@ -241,19 +283,50 @@ function SeasonalMarketPopup({
             제철장터
           </span>
           <span className="text-white/40 text-[10px]">CH 25</span>
+          {isOnAir && (
+            <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold">
+              LIVE
+            </span>
+          )}
         </div>
 
-        {/* 메시지 */}
-        <p className="text-white text-sm leading-relaxed">{popupText}</p>
+        {/* 메시지 — 방송 중/예정 분기 */}
+        {isOnAir ? (
+          <>
+            <p className="text-white text-sm leading-relaxed">
+              지금 제철장터에서 {productName} 판매 중입니다.
+            </p>
+            <p className="text-white/70 text-sm mt-1">시청 하시겠습니까?</p>
+          </>
+        ) : (
+          <>
+            <p className="text-white text-sm leading-relaxed">
+              {broadcastDate ? formatDate(broadcastDate) : ''} 제철장터에서 {productName} 판매 예정입니다.
+            </p>
+            {startTime && endTime && (
+              <p className="text-white/50 text-xs mt-1">({startTime} ~ {endTime})</p>
+            )}
+            <p className="text-white/70 text-sm mt-1">시청 예약 하시겠습니까?</p>
+          </>
+        )}
 
-        {/* 버튼 */}
+        {/* 버튼 — 방송 중/예정 분기 */}
         <div className="flex gap-2 mt-3">
-          <button
-            onClick={() => onReserve(ad.vod_id)}
-            className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors"
-          >
-            시청 예약
-          </button>
+          {isOnAir ? (
+            <button
+              onClick={() => onWatch(ad.vod_id)}
+              className="flex-1 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition-colors"
+            >
+              시청 하기
+            </button>
+          ) : (
+            <button
+              onClick={() => onReserve(ad.vod_id)}
+              className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors"
+            >
+              시청 예약
+            </button>
+          )}
           <button
             onClick={() => onDismiss(ad.vod_id)}
             className="flex-1 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 text-sm transition-colors"

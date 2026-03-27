@@ -54,6 +54,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const playbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const currentAssetIdRef = useRef<string | null>(null)
 
+
   // 로컬 진행률 업데이트 (API 재조회 없이 즉시 반영)
   const updateLocalProgress = useCallback((episodeTitle: string, rate: number) => {
     setProgress((prev: any) => {
