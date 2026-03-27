@@ -393,8 +393,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
           </div>
         ) : (
           /* 포스터 모드 */
-          <div className={`absolute inset-0 ${!hasImage ? `bg-gradient-to-br ${getFallbackGradient(seriesNm)}` : ''}`}>
-            {hasImage && <img src={posterUrl!} alt={seriesNm} className="w-full h-full object-cover" />}
+          <div className={`absolute inset-0 bg-gradient-to-br ${getFallbackGradient(seriesNm)}`}>
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
             {purchased ? (
