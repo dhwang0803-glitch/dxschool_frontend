@@ -30,7 +30,8 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const [similar, setSimilar] = useState<VOD[]>([])
   const [wishlisted, setWishlisted] = useState(false)
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
-  const [isFree, setIsFree] = useState(false)
+  const [isFree, setIsFree] = useState(false)   // 전체 무료
+  const [hasFree, setHasFree] = useState(false)  // 일부 무료
 
   // YouTube 플레이어 상태
   const [playing, setPlaying] = useState(false)
@@ -278,9 +279,11 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
             return numA - numB
           })
           setEpisodes(loadedEpisodes)
-          // 모든 에피소드가 무료이면 시리즈 무료 처리
-          if (loadedEpisodes.length > 0 && loadedEpisodes.every((ep: any) => ep.is_free)) {
-            setIsFree(true)
+          // 무료 에피소드 판별
+          const freeEps = loadedEpisodes.filter((ep: any) => ep.is_free)
+          if (freeEps.length > 0) {
+            setHasFree(true)
+            if (freeEps.length === loadedEpisodes.length) setIsFree(true)
           }
           const firstEp = loadedEpisodes[0]
           if (firstEp?.poster_url) setPosterUrl(firstEp.poster_url)
@@ -551,6 +554,12 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                       {ep.episode_title}
                     </span>
                     {ep.is_free && <span className="ml-2 text-xs text-green-400">무료</span>}
+                    {!purchased && !ep.is_free && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 inline w-3.5 h-3.5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                          d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                      </svg>
+                    )}
                     {isPlaying && <span className="ml-2 text-xs text-blue-400">재생 중</span>}
                     {!isPlaying && epProgress?.completion_rate === 100 && (
                       <span className="ml-2 text-xs text-blue-400">시청 완료</span>
