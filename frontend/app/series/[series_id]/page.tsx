@@ -30,6 +30,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const [similar, setSimilar] = useState<VOD[]>([])
   const [wishlisted, setWishlisted] = useState(false)
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
+  const [isFree, setIsFree] = useState(false)
 
   // YouTube 플레이어 상태
   const [playing, setPlaying] = useState(false)
@@ -277,6 +278,10 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
             return numA - numB
           })
           setEpisodes(loadedEpisodes)
+          // 모든 에피소드가 무료이면 시리즈 무료 처리
+          if (loadedEpisodes.length > 0 && loadedEpisodes.every((ep: any) => ep.is_free)) {
+            setIsFree(true)
+          }
           const firstEp = loadedEpisodes[0]
           if (firstEp?.poster_url) setPosterUrl(firstEp.poster_url)
         }
@@ -289,7 +294,9 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
 
         const fromWatching = !!episodeFromQuery
         const purchaseCheckOk = purchaseRes.status === 'fulfilled' && purchaseRes.value?.purchased === true
-        setPurchased(purchaseCheckOk || hasProgress || fromWatching)
+        // 무료 시리즈는 구매 없이 시청 가능
+        const allFree = loadedEpisodes.length > 0 && loadedEpisodes.every((ep: any) => ep.is_free)
+        setPurchased(purchaseCheckOk || hasProgress || fromWatching || allFree)
         if (purchaseRes.status === 'fulfilled' && purchaseRes.value) {
           setPurchaseInfo(purchaseRes.value)
         }
@@ -400,7 +407,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
           <div className={`absolute inset-0 bg-gradient-to-br ${getFallbackGradient(seriesNm)}`}>
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
-            {purchased ? (
+            {purchased || isFree ? (
               <div
                 className="absolute inset-0 flex items-center justify-center group cursor-pointer"
                 onClick={() => {
@@ -478,7 +485,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
               >
                 {wishlisted ? '♥ 찜완료' : '+ 찜하기'}
               </button>
-              {purchased ? (
+              {purchased || isFree ? (
                 <button
                   onClick={() => {
                     const target = resumeEpisode || episodes[0]?.episode_title
@@ -486,7 +493,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                 >
-                  ▶ {resumeEpisode ? `${resumeEpisode} 이어보기` : '1화 시청하기'}
+                  ▶ {resumeEpisode ? `${resumeEpisode} 이어보기` : isFree ? '시청하기' : '1화 시청하기'}
                 </button>
               ) : (
                 <Link
@@ -512,9 +519,9 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                 <div
                   key={idx}
                   ref={(el) => { episodeRefs.current[ep.episode_title] = el }}
-                  onClick={() => purchased && playEpisode(ep.episode_title)}
+                  onClick={() => (purchased || ep.is_free) && playEpisode(ep.episode_title)}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors ${
-                    purchased ? 'cursor-pointer' : ''
+                    purchased || ep.is_free ? 'cursor-pointer' : ''
                   } ${
                     isPlaying
                       ? 'bg-blue-500/30 ring-1 ring-blue-400'
