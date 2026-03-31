@@ -14,12 +14,12 @@ export default function HeroBanner({ vods }: { vods: VOD[] }) {
     return () => clearInterval(timer)
   }, [vods.length])
 
-  if (vods.length === 0) return <div className="w-full h-[480px] bg-zinc-900" />
+  if (vods.length === 0) return <div className="w-full h-[50vw] min-h-[320px] max-h-[960px] bg-zinc-900" />
 
   const vod = vods[current]
 
   return (
-    <div className="relative w-full h-[480px] overflow-hidden">
+    <div className="relative w-full h-[50vw] min-h-[320px] max-h-[960px] overflow-hidden">
       {vods.map((v, i) => {
         const bgUrl = v.backdrop_url || v.poster_url
         const hasImage = isImageUrl(bgUrl)
@@ -29,11 +29,13 @@ export default function HeroBanner({ vods }: { vods: VOD[] }) {
             className={`absolute inset-0 transition-opacity duration-700 ${
               i === current ? 'opacity-100' : 'opacity-0'
             } ${!hasImage ? `bg-gradient-to-br ${getFallbackGradient(v.asset_nm)}` : ''}`}
-          >
-            {hasImage && (
-              <img src={bgUrl!} alt={v.asset_nm} className="w-full h-full object-cover" />
-            )}
-          </div>
+            style={hasImage ? {
+              backgroundImage: `url("${bgUrl}")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            } : undefined}
+          />
         )
       })}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />

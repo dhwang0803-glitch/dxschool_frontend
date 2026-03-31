@@ -125,7 +125,7 @@ export default function RecommendPage() {
     <main className="bg-black min-h-screen pb-16">
       {/* 메인 배너 — top_vod 캐러셀 (4초 자동 전환) */}
       {topVods.length > 0 && (
-        <div className="relative w-full h-[480px] overflow-hidden">
+        <div className="relative w-full h-[50vw] min-h-[320px] max-h-[960px] overflow-hidden">
           {topVods.map((v, i) => {
             const bgUrl = v.backdrop_url || v.poster_url
             const hasImage = isImageUrl(bgUrl)
@@ -136,10 +136,13 @@ export default function RecommendPage() {
                 className={`absolute inset-0 flex items-end transition-opacity duration-700
                   ${!hasImage ? `bg-gradient-to-br ${getFallbackGradient(v.asset_nm)}` : ''}
                   ${i === topCurrent ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                style={hasImage ? {
+                  backgroundImage: `url("${bgUrl}")`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                } : undefined}
               >
-                {hasImage && (
-                  <img src={bgUrl!} alt={v.asset_nm} className="absolute inset-0 w-full h-full object-cover" />
-                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
                 <div className="relative pb-16 px-10">
