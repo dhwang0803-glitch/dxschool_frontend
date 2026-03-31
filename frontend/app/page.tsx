@@ -190,6 +190,7 @@ export default function HomePage() {
             series_id: item.series_nm,
             asset_nm: item.title,
             poster_url: item.poster_url,
+            backdrop_url: item.backdrop_url ?? null,
             ct_cl: item.category,
             score: item.score,
           })))
