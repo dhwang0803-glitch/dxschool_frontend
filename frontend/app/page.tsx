@@ -113,10 +113,10 @@ function Top10Section({ section }: { section: PersonalSection }) {
             const bgUrl = vod.backdrop_url || vod.poster_url
             const hasImage = isImageUrl(bgUrl)
             return (
-              <div key={vod.series_id} className="shrink-0" style={{ width: 'calc((100vw - 48px - 80px) / 4)' }}>
+              <div key={vod.series_id} className="shrink-0 flex flex-col" style={{ width: 'calc((100vw - 48px - 48px) / 3)' }}>
                 <Link href={`/series/${encodeURIComponent(vod.series_id)}`} className="group block">
                   <div className="rounded-lg p-[1px] bg-gradient-to-b from-white/30 via-white/10 to-transparent">
-                    <div className={`w-full aspect-video rounded-lg overflow-hidden relative
+                    <div className={`w-full h-[40vw] min-h-[310px] max-h-[620px] rounded-lg overflow-hidden relative
                       group-hover:scale-[1.03] group-hover:brightness-110 transition-all duration-200
                       ${!hasImage ? `bg-gradient-to-b ${getFallbackGradient(vod.asset_nm)}` : ''}`}>
                       {hasImage && (
@@ -131,9 +131,11 @@ function Top10Section({ section }: { section: PersonalSection }) {
                     </div>
                   </div>
                 </Link>
-                {vod.rec_sentence && (
-                  <p className="mt-2 text-sm text-white/70 leading-relaxed line-clamp-4">{vod.rec_sentence}</p>
-                )}
+                <div className="mt-4 min-h-[56px]">
+                  {vod.rec_sentence && (
+                    <p className="text-base text-white leading-relaxed tracking-wide text-center line-clamp-3">{vod.rec_sentence}</p>
+                  )}
+                </div>
               </div>
             )
           })}
