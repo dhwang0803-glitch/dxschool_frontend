@@ -107,33 +107,35 @@ function Top10Section({ section }: { section: PersonalSection }) {
 
         <div
           ref={scrollRef}
-          className="flex gap-3 overflow-x-auto px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-4 overflow-x-auto px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {section.vods.map(vod => {
-            const hasImage = isImageUrl(vod.poster_url)
+            const bgUrl = vod.backdrop_url || vod.poster_url
+            const hasImage = isImageUrl(bgUrl)
             return (
-              <div key={vod.series_id} className="shrink-0 w-60">
+              <div key={vod.series_id} className="shrink-0 flex flex-col" style={{ width: 'calc((100vw - 48px - 48px) / 3)' }}>
                 <Link href={`/series/${encodeURIComponent(vod.series_id)}`} className="group block">
-                  <div className={`w-60 h-[360px] rounded-lg overflow-hidden relative
-                    group-hover:scale-105 group-hover:brightness-110 transition-all duration-200
-                    ${!hasImage ? `bg-gradient-to-b ${getFallbackGradient(vod.asset_nm)}` : ''}`}>
-                    {hasImage && (
-                      <img src={vod.poster_url!} alt={vod.asset_nm} className="w-full h-full object-cover" />
-                    )}
-                    {/* Rank badge */}
-                    {vod.rank != null && (
-                      <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center shadow-lg">
-                        <span className="text-black text-lg font-extrabold leading-none">{vod.rank}</span>
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                      <span className="text-white text-xs font-medium line-clamp-2 drop-shadow">{vod.asset_nm}</span>
+                  <div className="rounded-lg p-[1px] bg-gradient-to-b from-white/30 via-white/10 to-transparent">
+                    <div className={`w-full h-[40vw] min-h-[310px] max-h-[620px] rounded-lg overflow-hidden relative
+                      group-hover:scale-[1.03] group-hover:brightness-110 transition-all duration-200
+                      ${!hasImage ? `bg-gradient-to-b ${getFallbackGradient(vod.asset_nm)}` : ''}`}>
+                      {hasImage && (
+                        <img src={bgUrl!} alt={vod.asset_nm} className="w-full h-full object-cover" />
+                      )}
+                      {/* Rank badge */}
+                      {vod.rank != null && (
+                        <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center shadow-lg">
+                          <span className="text-black text-lg font-extrabold leading-none">{vod.rank}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Link>
-                {vod.rec_sentence && (
-                  <p className="mt-1.5 text-xs text-white/60 truncate">{vod.rec_sentence}</p>
-                )}
+                <div className="mt-4 min-h-[56px]">
+                  {vod.rec_sentence && (
+                    <p className="text-base text-white leading-relaxed tracking-wide text-center line-clamp-3">{vod.rec_sentence}</p>
+                  )}
+                </div>
               </div>
             )
           })}
@@ -228,12 +230,33 @@ export default function HomePage() {
               series_id: v.series_nm,
               asset_nm: v.asset_nm,
               poster_url: v.poster_url,
+              backdrop_url: v.backdrop_url ?? null,
               score: v.score ?? undefined,
               rank: v.rank ?? null,
               rec_reason: v.rec_reason ?? null,
               rec_sentence: v.rec_sentence ?? null,
             })),
           })))
+        }
+
+        // API 전부 실패 시 Top10 목 데이터 (디자인 확인용, API 연결 시 제거)
+        const allFailed = [bannerRes, sectionsRes, watchingRes, personalRes].every(
+          r => r.status === 'rejected' || !r.value
+        )
+        if (allFailed) {
+          const mockNames = ['검색어를 입력하세요 WWW', '썸바디', '조립식 가족', '또 오해영', '아는 형님', '시카고 타자기', '미생', '시그널', '비밀의 숲', '나의 아저씨']
+          setPersonalSections([{
+            title: `${userId || 'user'}님만을 위한 추천 시리즈 TOP10`,
+            view_ratio: null,
+            vods: mockNames.map((name, i) => ({
+              series_id: `mock-${i + 1}`,
+              asset_nm: name,
+              poster_url: null,
+              rank: i + 1,
+              rec_reason: null,
+              rec_sentence: null,
+            })),
+          }])
         }
       } catch (e) {
         console.error('홈 데이터 로드 실패:', e)
