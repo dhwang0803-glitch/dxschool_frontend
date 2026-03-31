@@ -110,26 +110,29 @@ function Top10Section({ section }: { section: PersonalSection }) {
           className="flex gap-4 overflow-x-auto px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {section.vods.map(vod => {
-            const hasImage = isImageUrl(vod.poster_url)
+            const bgUrl = vod.backdrop_url || vod.poster_url
+            const hasImage = isImageUrl(bgUrl)
             return (
-              <div key={vod.series_id} className="shrink-0" style={{ width: 'calc((100vw - 48px - 40px) / 6)' }}>
+              <div key={vod.series_id} className="shrink-0" style={{ width: 'calc((100vw - 48px - 80px) / 4)' }}>
                 <Link href={`/series/${encodeURIComponent(vod.series_id)}`} className="group block">
-                  <div className={`w-full aspect-[2/3] rounded-lg overflow-hidden relative
-                    group-hover:scale-105 group-hover:brightness-110 transition-all duration-200
-                    ${!hasImage ? `bg-gradient-to-b ${getFallbackGradient(vod.asset_nm)}` : ''}`}>
-                    {hasImage && (
-                      <img src={vod.poster_url!} alt={vod.asset_nm} className="w-full h-full object-cover" />
-                    )}
-                    {/* Rank badge */}
-                    {vod.rank != null && (
-                      <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center shadow-lg">
-                        <span className="text-black text-lg font-extrabold leading-none">{vod.rank}</span>
-                      </div>
-                    )}
+                  <div className="rounded-lg p-[1px] bg-gradient-to-b from-white/30 via-white/10 to-transparent">
+                    <div className={`w-full aspect-video rounded-lg overflow-hidden relative
+                      group-hover:scale-[1.03] group-hover:brightness-110 transition-all duration-200
+                      ${!hasImage ? `bg-gradient-to-b ${getFallbackGradient(vod.asset_nm)}` : ''}`}>
+                      {hasImage && (
+                        <img src={bgUrl!} alt={vod.asset_nm} className="w-full h-full object-cover" />
+                      )}
+                      {/* Rank badge */}
+                      {vod.rank != null && (
+                        <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center shadow-lg">
+                          <span className="text-black text-lg font-extrabold leading-none">{vod.rank}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </Link>
                 {vod.rec_sentence && (
-                  <p className="mt-2 text-sm text-white/70 line-clamp-3">{vod.rec_sentence}</p>
+                  <p className="mt-2 text-sm text-white/70 leading-relaxed line-clamp-4">{vod.rec_sentence}</p>
                 )}
               </div>
             )
@@ -225,6 +228,7 @@ export default function HomePage() {
               series_id: v.series_nm,
               asset_nm: v.asset_nm,
               poster_url: v.poster_url,
+              backdrop_url: v.backdrop_url ?? null,
               score: v.score ?? undefined,
               rank: v.rank ?? null,
               rec_reason: v.rec_reason ?? null,
