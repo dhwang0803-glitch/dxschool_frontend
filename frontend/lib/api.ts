@@ -1,7 +1,15 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const RELEASE_API_URL = process.env.NEXT_PUBLIC_RELEASE_API_URL || "";
+const DEV_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+function getApiUrl() {
+  if (typeof window !== "undefined" && window.location.hostname.includes("release") && RELEASE_API_URL) {
+    return RELEASE_API_URL;
+  }
+  return DEV_API_URL;
+}
 
 export async function fetchToken(userId: string): Promise<string> {
-  const res = await fetch(`${API_URL}/auth/token`, {
+  const res = await fetch(`${getApiUrl()}/auth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: userId }),
@@ -20,7 +28,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const res = await fetch(`${getApiUrl()}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => null);
     throw new Error(err?.error?.message || `API 오류 (${res.status})`);
