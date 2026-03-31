@@ -128,9 +128,8 @@ function Top10Section({ section }: { section: PersonalSection }) {
                     )}
                   </div>
                 </Link>
-                <p className="mt-2 text-white/80 text-sm truncate">{vod.asset_nm}</p>
                 {vod.rec_sentence && (
-                  <p className="mt-0.5 text-xs text-white/50 truncate">{vod.rec_sentence}</p>
+                  <p className="mt-2 text-sm text-white/70 line-clamp-3">{vod.rec_sentence}</p>
                 )}
               </div>
             )
