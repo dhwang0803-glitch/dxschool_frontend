@@ -3,7 +3,9 @@ import { useState, use, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import PosterCard from '@/components/PosterCard'
+import ShoppingAdPopup from '@/components/ShoppingAdPopup'
 import { VOD, isImageUrl, getFallbackGradient } from '@/lib/types'
+import { useAdSocket } from '@/lib/useAdSocket'
 import { getEpisodes, getProgress, getPurchaseCheck, getSimilar, addWishlist, removeWishlist, getVODDetail, postEpisodeProgress } from '@/lib/api'
 
 declare global {
@@ -28,6 +30,8 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const [similar, setSimilar] = useState<VOD[]>([])
   const [wishlisted, setWishlisted] = useState(false)
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
+  const [isFree, setIsFree] = useState(false)   // 전체 무료
+  const [hasFree, setHasFree] = useState(false)  // 일부 무료
 
   // YouTube 플레이어 상태
   const [playing, setPlaying] = useState(false)
@@ -37,11 +41,25 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const [activeEpisode, setActiveEpisode] = useState<string | null>(null)
 
   const playerRef = useRef<any>(null)
+  const playerWrapperRef = useRef<HTMLDivElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
   const episodeRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const playingEpisodeRef = useRef<string | null>(null)
   const autoplayRef = useRef(false)
+
+  // 광고 팝업 WebSocket
+  const [adUserId, setAdUserId] = useState<string | null>(null)
+  useEffect(() => {
+    setAdUserId(localStorage.getItem('user_id'))
+  }, [])
+  const { ads, lastResponse, lastAlert, sendPlaybackUpdate, sendAction, removeAd, setLastResponse, setLastAlert, reconnect } = useAdSocket(adUserId)
+  const playbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const currentAssetIdRef = useRef<string | null>(null)
+  const playbackStartTimeRef = useRef<number>(0) // 재생 시작 시각 (광고 grace period용)
+  const lastSentTimeRef = useRef<number>(-1) // 마지막 전송 time_sec (seek 감지용)
+  const seekGraceUntilRef = useRef<number>(0) // seek 후 grace period 끝나는 시각
+
 
   // 로컬 진행률 업데이트 (API 재조회 없이 즉시 반영)
   const updateLocalProgress = useCallback((episodeTitle: string, rate: number) => {
@@ -62,6 +80,38 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
       heartbeatRef.current = null
     }
   }, [])
+
+  const stopPlaybackTimer = useCallback(() => {
+    if (playbackTimerRef.current) {
+      clearInterval(playbackTimerRef.current)
+      playbackTimerRef.current = null
+    }
+  }, [])
+
+  const startPlaybackTimer = useCallback(() => {
+    // 이미 타이머가 돌고 있으면 재시작하지 않음 (pause/buffer 후 resume 시 grace 리셋 방지)
+    if (playbackTimerRef.current) return
+    playbackTimerRef.current = setInterval(() => {
+      const player = playerRef.current
+      const assetId = currentAssetIdRef.current
+      if (!player || !assetId) return
+      // grace period 중이면 전송 안 함
+      if (Date.now() < seekGraceUntilRef.current) return
+      try {
+        const current = player.getCurrentTime()
+        if (!current) return
+        const timeSec = Math.round(current)
+        // seek 감지: 이전 전송 시간과 30초 이상 차이나면 seek로 판단 → 3초 grace (최초 전송 시 제외)
+        if (lastSentTimeRef.current > 0 && Math.abs(timeSec - lastSentTimeRef.current) > 30) {
+          seekGraceUntilRef.current = Date.now() + 3000
+          lastSentTimeRef.current = timeSec
+          return
+        }
+        lastSentTimeRef.current = timeSec
+        sendPlaybackUpdate(assetId, timeSec)
+      } catch { /* ignore */ }
+    }, 500)
+  }, [sendPlaybackUpdate])
 
   const startHeartbeat = useCallback(() => {
     stopHeartbeat()
@@ -87,8 +137,8 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     }, 30000)
   }, [seriesNm, stopHeartbeat, updateLocalProgress])
 
-  // YouTube 플레이어 초기화 (videoId로 히어로 영역에 재생)
-  const initYouTubePlayer = useCallback((videoId: string) => {
+  // YouTube 플레이어 초기화 (videoId로 히어로 영역에 재생, resumeRate가 있으면 해당 지점부터)
+  const initYouTubePlayer = useCallback((videoId: string, resumeRate?: number) => {
     stopHeartbeat()
     if (playerRef.current) {
       playerRef.current.destroy()
@@ -102,16 +152,37 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     }, 100)
 
     const initPlayer = () => {
+      // YouTube IFrame API가 대상 div를 iframe으로 교체하므로,
+      // React 렌더 트리 밖에서 DOM API로 직접 생성하여 충돌 방지
+      if (playerWrapperRef.current) {
+        playerWrapperRef.current.innerHTML = ''
+        const el = document.createElement('div')
+        el.id = 'yt-hero-player'
+        el.style.width = '100%'
+        el.style.height = '100%'
+        playerWrapperRef.current.appendChild(el)
+      }
       playerRef.current = new window.YT.Player('yt-hero-player', {
         videoId,
-        playerVars: { autoplay: 1, rel: 0 },
+        playerVars: { autoplay: 1, rel: 0, fs: 0 },
         events: {
-          onReady: () => setPlayerLoading(false),
+          onReady: (e: any) => {
+              setPlayerLoading(false)
+              // 이어보기: 진행률이 있으면 해당 지점으로 seek
+              if (resumeRate && resumeRate > 0 && resumeRate < 100) {
+                const duration = e.target.getDuration()
+                if (duration) {
+                  e.target.seekTo(Math.floor(duration * resumeRate / 100), true)
+                }
+              }
+            },
           onStateChange: (e: any) => {
             if (e.data === window.YT.PlayerState.PLAYING) {
               startHeartbeat()
+              startPlaybackTimer()
             } else {
               stopHeartbeat()
+              stopPlaybackTimer()
               if (e.data === window.YT.PlayerState.ENDED && playingEpisodeRef.current) {
                 const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
                 if (token) {
@@ -143,7 +214,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         window.onYouTubeIframeAPIReady = initPlayer
       }
     }, 200)
-  }, [seriesNm, startHeartbeat, stopHeartbeat, updateLocalProgress])
+  }, [seriesNm, startHeartbeat, stopHeartbeat, startPlaybackTimer, stopPlaybackTimer, updateLocalProgress])
 
   // 에피소드 재생 시작
   const playEpisode = useCallback(async (episodeTitle: string) => {
@@ -152,9 +223,18 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     setPlayingEpisode(episodeTitle)
     playingEpisodeRef.current = episodeTitle
 
+    // 에피소드 전환: 기존 광고 + 타이머 초기화 + WebSocket 재연결 (_sent_ad_ids 리셋)
+    ads.forEach((ad) => removeAd(ad.vod_id))
+    reconnect()
+    stopPlaybackTimer()
+    lastSentTimeRef.current = -1
+    seekGraceUntilRef.current = Date.now() + 5000 // 최초 5초 grace
+
     // 에피소드의 asset_id로 VOD 상세 조회
     const ep = episodes.find((e: any) => e.episode_title === episodeTitle)
     const assetId = ep?.asset_id
+
+    currentAssetIdRef.current = assetId || null
 
     if (assetId) {
       try {
@@ -162,7 +242,9 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         if (vodDetail?.youtube_url) {
           const videoId = vodDetail.youtube_url.split('/embed/')[1]
           if (videoId) {
-            initYouTubePlayer(videoId)
+            // 해당 에피소드의 기존 진행률 조회 → 이어보기 지점 전달
+            const epProgress = progress?.episodes?.find((e: any) => e.episode_title === episodeTitle)
+            initYouTubePlayer(videoId, epProgress?.completion_rate)
             return
           }
         }
@@ -176,7 +258,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     setPlaying(false)
     setPlayerLoading(false)
     heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [episodes, initYouTubePlayer])
+  }, [episodes, progress, initYouTubePlayer])
 
   // 데이터 로드
   useEffect(() => {
@@ -191,8 +273,18 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         let loadedEpisodes: any[] = []
 
         if (episodesRes.status === 'fulfilled' && episodesRes.value) {
-          loadedEpisodes = episodesRes.value.episodes || []
+          loadedEpisodes = (episodesRes.value.episodes || []).sort((a: any, b: any) => {
+            const numA = parseInt(a.episode_title.replace(/[^0-9]/g, ''), 10) || 0
+            const numB = parseInt(b.episode_title.replace(/[^0-9]/g, ''), 10) || 0
+            return numA - numB
+          })
           setEpisodes(loadedEpisodes)
+          // 무료 에피소드 판별
+          const freeEps = loadedEpisodes.filter((ep: any) => ep.is_free)
+          if (freeEps.length > 0) {
+            setHasFree(true)
+            if (freeEps.length === loadedEpisodes.length) setIsFree(true)
+          }
           const firstEp = loadedEpisodes[0]
           if (firstEp?.poster_url) setPosterUrl(firstEp.poster_url)
         }
@@ -205,7 +297,9 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
 
         const fromWatching = !!episodeFromQuery
         const purchaseCheckOk = purchaseRes.status === 'fulfilled' && purchaseRes.value?.purchased === true
-        setPurchased(purchaseCheckOk || hasProgress || fromWatching)
+        // 무료 시리즈는 구매 없이 시청 가능
+        const allFree = loadedEpisodes.length > 0 && loadedEpisodes.every((ep: any) => ep.is_free)
+        setPurchased(purchaseCheckOk || hasProgress || fromWatching || allFree)
         if (purchaseRes.status === 'fulfilled' && purchaseRes.value) {
           setPurchaseInfo(purchaseRes.value)
         }
@@ -231,12 +325,13 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   useEffect(() => {
     return () => {
       stopHeartbeat()
+      stopPlaybackTimer()
       if (playerRef.current) {
         playerRef.current.destroy()
         playerRef.current = null
       }
     }
-  }, [stopHeartbeat])
+  }, [stopHeartbeat, stopPlaybackTimer])
 
   const toggleWishlist = async () => {
     try {
@@ -269,27 +364,53 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
       {/* 히어로 배너 — 포스터 또는 YouTube 플레이어 */}
       <div ref={heroRef} className="relative w-full bg-black" style={{ aspectRatio: '16/9', maxHeight: '540px' }}>
         {playing && !playerError ? (
-          /* YouTube 플레이어 모드 */
-          <div className="absolute inset-0 bg-black">
-            {playerLoading && (
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <div className="text-white/50">로딩 중...</div>
-              </div>
-            )}
-            <div id="yt-hero-player" className="w-full h-full" />
+          /* YouTube 플레이어 모드 — 컨테이너 전체화면 (팝업 오버레이 유지) */
+          <div id="player-container" className="absolute inset-0 bg-black">
+            <div className={`absolute inset-0 flex items-center justify-center z-10 ${playerLoading ? '' : 'hidden'}`}>
+              <div className="text-white/50">로딩 중...</div>
+            </div>
+            <div ref={playerWrapperRef} className="absolute inset-0" />
             {playingEpisode && (
               <div className="absolute top-3 right-3 z-10 px-3 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs">
                 {playingEpisode}
               </div>
             )}
+            {/* 커스텀 전체화면 버튼 */}
+            <button
+              onClick={() => {
+                const container = document.getElementById('player-container')
+                if (!container) return
+                if (document.fullscreenElement) {
+                  document.exitFullscreen()
+                } else {
+                  container.requestFullscreen()
+                }
+              }}
+              className="absolute bottom-3 right-3 z-[56] w-8 h-8 rounded bg-black/60 hover:bg-black/80
+                flex items-center justify-center text-white/70 hover:text-white transition-colors"
+              title="전체화면"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+              </svg>
+            </button>
+            {/* 광고 팝업 — 플레이어 안쪽 */}
+            <ShoppingAdPopup
+              ads={ads}
+              lastResponse={lastResponse}
+              lastAlert={lastAlert}
+              onAction={sendAction}
+              onRemove={removeAd}
+              onClearResponse={() => setLastResponse(null)}
+              onClearAlert={() => setLastAlert(null)}
+            />
           </div>
         ) : (
           /* 포스터 모드 */
-          <div className={`absolute inset-0 ${!hasImage ? `bg-gradient-to-br ${getFallbackGradient(seriesNm)}` : ''}`}>
-            {hasImage && <img src={posterUrl!} alt={seriesNm} className="w-full h-full object-cover" />}
+          <div className={`absolute inset-0 bg-gradient-to-br ${getFallbackGradient(seriesNm)}`}>
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
-            {purchased ? (
+            {purchased || isFree ? (
               <div
                 className="absolute inset-0 flex items-center justify-center group cursor-pointer"
                 onClick={() => {
@@ -367,7 +488,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
               >
                 {wishlisted ? '♥ 찜완료' : '+ 찜하기'}
               </button>
-              {purchased ? (
+              {purchased || isFree ? (
                 <button
                   onClick={() => {
                     const target = resumeEpisode || episodes[0]?.episode_title
@@ -375,7 +496,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                 >
-                  ▶ {resumeEpisode ? `${resumeEpisode} 이어보기` : '1화 시청하기'}
+                  ▶ {resumeEpisode ? `${resumeEpisode} 이어보기` : isFree ? '시청하기' : '1화 시청하기'}
                 </button>
               ) : (
                 <Link
@@ -401,9 +522,9 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                 <div
                   key={idx}
                   ref={(el) => { episodeRefs.current[ep.episode_title] = el }}
-                  onClick={() => purchased && playEpisode(ep.episode_title)}
+                  onClick={() => (purchased || ep.is_free) && playEpisode(ep.episode_title)}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors ${
-                    purchased ? 'cursor-pointer' : ''
+                    purchased || ep.is_free ? 'cursor-pointer' : ''
                   } ${
                     isPlaying
                       ? 'bg-blue-500/30 ring-1 ring-blue-400'
@@ -433,6 +554,12 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                       {ep.episode_title}
                     </span>
                     {ep.is_free && <span className="ml-2 text-xs text-green-400">무료</span>}
+                    {!purchased && !ep.is_free && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 inline w-3.5 h-3.5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                          d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                      </svg>
+                    )}
                     {isPlaying && <span className="ml-2 text-xs text-blue-400">재생 중</span>}
                     {!isPlaying && epProgress?.completion_rate === 100 && (
                       <span className="ml-2 text-xs text-blue-400">시청 완료</span>
