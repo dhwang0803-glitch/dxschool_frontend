@@ -156,6 +156,33 @@ function Top10Section({ section }: { section: PersonalSection }) {
   )
 }
 
+/* ── userId 앞 5글자만 표시 ── */
+function shortId(userId: string | null): string {
+  return userId ? userId.slice(0, 5) : 'user'
+}
+
+/* ── 개인화 섹션 제목 매핑 ── */
+const PERSONAL_TITLE_MAP: Record<string, string> = {
+  '드라마': '깊은 여운이 남는 작품',
+  '영화': '취향저격 영화 모음',
+  'TV 연예/오락': '보면 빠져드는 예능',
+  '연예/오락': '보면 빠져드는 예능',
+  '애니메이션': '정주행 각 애니메이션',
+}
+
+function getPersonalTitle(genre: string, userId: string | null): string {
+  // API가 이미 포맷된 제목을 주는 경우 (userId 포함, "좋아할만한", "비슷한" 등) → 그대로 사용하되 userId만 절삭
+  if (/님[이을만]|취향과 비슷한|위한 추천/.test(genre)) {
+    return genre.replace(/[a-f0-9]{6,}/gi, m => m.slice(0, 5))
+  }
+  // 장르명에서 "추천 인기 " 접두사 제거 후 매핑
+  const cleanGenre = genre.replace(/^추천\s*인기\s*/, '')
+  if (PERSONAL_TITLE_MAP[cleanGenre]) return PERSONAL_TITLE_MAP[cleanGenre]
+  if (PERSONAL_TITLE_MAP[genre]) return PERSONAL_TITLE_MAP[genre]
+  // 폴백: 앞 5글자 userId님 취향 {장르}
+  return `${shortId(userId)}님 취향 ${cleanGenre}`
+}
+
 /* ── 개인화 섹션 (view_ratio 자막 포함) ── */
 function PersonalHorizontalSection({ section }: { section: PersonalSection }) {
   return (
@@ -224,7 +251,7 @@ export default function HomePage() {
 
         if (personalRes.status === 'fulfilled' && personalRes.value) {
           setPersonalSections(personalRes.value.sections.map((sec: any) => ({
-            title: sec.genre,
+            title: getPersonalTitle(sec.genre, userId),
             view_ratio: sec.view_ratio ?? null,
             vods: sec.vod_list.map((v: any) => ({
               series_id: v.series_nm,
@@ -246,7 +273,7 @@ export default function HomePage() {
         if (allFailed) {
           const mockNames = ['검색어를 입력하세요 WWW', '썸바디', '조립식 가족', '또 오해영', '아는 형님', '시카고 타자기', '미생', '시그널', '비밀의 숲', '나의 아저씨']
           setPersonalSections([{
-            title: `${userId || 'user'}님만을 위한 추천 시리즈 TOP10`,
+            title: `${shortId(userId)}님만을 위한 추천 시리즈 TOP10`,
             view_ratio: null,
             vods: mockNames.map((name, i) => ({
               series_id: `mock-${i + 1}`,
