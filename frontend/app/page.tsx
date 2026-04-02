@@ -76,6 +76,15 @@ function WatchingSection({ items }: { items: WatchingItem[] }) {
   )
 }
 
+/** rec_reason 유형별 태그 라벨 (스마트추천과 동일 로직) */
+function getReasonTag(reason: string | null | undefined): string {
+  if (!reason) return '나만을 위한 추천'
+  if (/배우|출연|님\s*작품/.test(reason)) return '자주 보는 출연진의 작품'
+  if (/감독/.test(reason)) return '최애 감독의 연출작'
+  if (/장르/.test(reason)) return '즐겨 보는 장르'
+  return '취향 기반 추천'
+}
+
 /* ── TOP10 섹션 ── */
 function Top10Section({ section }: { section: PersonalSection }) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -128,6 +137,12 @@ function Top10Section({ section }: { section: PersonalSection }) {
                           <span className="text-black text-lg font-extrabold leading-none">{vod.rank}</span>
                         </div>
                       )}
+                      {/* 추천 이유 태그 — 우측 상단 */}
+                      <div className="absolute top-2 right-2">
+                        <span className="inline-block px-2 py-1 rounded bg-blue-500/85 text-white text-[11px] font-medium backdrop-blur-sm shadow-lg">
+                          {getReasonTag(vod.rec_reason)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </Link>
