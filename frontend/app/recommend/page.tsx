@@ -5,9 +5,29 @@ import PosterCard from '@/components/PosterCard'
 import { VOD, Pattern, isImageUrl, getFallbackGradient } from '@/lib/types'
 import { getRecommend } from '@/lib/api'
 
+/** pattern_reason 유형별 태그 라벨 */
+function getReasonTag(reason: string): string {
+  // 출연진 기반: "OOO 배우 출연작을", "OOO 배우가 출연한", "OOO 님 작품"
+  if (/배우|출연|님\s*작품/.test(reason)) return '자주 보는 출연진의 작품'
+  // 감독 기반: "OOO 감독 작품을"
+  if (/감독/.test(reason)) return '최애 감독의 연출작'
+  // 장르 기반: "OOO 장르를 즐겨 보셨어요"
+  if (/장르/.test(reason)) return '즐겨 보는 장르'
+  // 폴백
+  return '취향 기반 추천'
+}
+
+/** "배우" → "님" 으로 치환하여 직업 표현 통일 */
+function cleanReason(reason: string): string {
+  return reason
+    .replace(/배우님/g, '님')
+    .replace(/(\S+)\s*배우가?\s*(출연작|출연한)/g, '$1 님 $2')
+}
+
 function PatternSection({ pattern, active }: { pattern: Pattern; active: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [hovered, setHovered] = useState(false)
+  const reasonTag = getReasonTag(pattern.pattern_reason)
 
   const scroll = (dir: 'left' | 'right') => {
     if (!scrollRef.current) return
@@ -21,7 +41,7 @@ function PatternSection({ pattern, active }: { pattern: Pattern; active: boolean
       onMouseLeave={() => setHovered(false)}
     >
       <div className="px-6 mb-3">
-        <h3 className="text-white font-semibold text-xl mt-1">{pattern.pattern_reason}</h3>
+        <h3 className="text-white font-semibold text-xl mt-1">{cleanReason(pattern.pattern_reason)}</h3>
       </div>
       <div className="relative">
         <button
@@ -40,7 +60,17 @@ function PatternSection({ pattern, active }: { pattern: Pattern; active: boolean
           className="flex gap-3 overflow-x-auto px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {pattern.vod_list.map(vod => (
-            <PosterCard key={vod.series_id} vod={vod} />
+            <div key={vod.series_id} className="shrink-0 w-60">
+              <div className="relative">
+                <PosterCard vod={vod} />
+                {/* 좌측 상단 추천 이유 태그 */}
+                <div className="absolute top-2 left-2 z-10 pointer-events-none">
+                  <span className="inline-block px-2 py-1 rounded bg-blue-500/85 text-white text-[11px] font-medium backdrop-blur-sm shadow-lg">
+                    {reasonTag}
+                  </span>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
 
@@ -64,6 +94,7 @@ export default function RecommendPage() {
   const [topCurrent, setTopCurrent] = useState(0)
   const [patterns, setPatterns] = useState<Pattern[]>([])
   const [source, setSource] = useState<'personalized' | 'popular_fallback' | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -76,10 +107,11 @@ export default function RecommendPage() {
 
   useEffect(() => {
     async function load() {
-      const userId = localStorage.getItem('user_id')
-      if (!userId) { setLoading(false); return }
+      const uid = localStorage.getItem('user_id')
+      setUserId(uid)
+      if (!uid) { setLoading(false); return }
       try {
-        const data = await getRecommend(userId)
+        const data = await getRecommend(uid)
         if (data.source) {
           setSource(data.source)
         }
@@ -147,7 +179,7 @@ export default function RecommendPage() {
                 <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
                 <div className="relative pb-16 px-10">
                   <span className={`text-xs font-semibold ${source === 'popular_fallback' ? 'text-amber-400' : 'text-blue-400'}`}>
-                    {source === 'popular_fallback' ? '지금 인기 있는 콘텐츠' : '오늘의 TOP 추천'}
+                    {source === 'popular_fallback' ? '지금 모두가 보고 있는 콘텐츠' : `${userId ? userId.slice(0, 5) : '회원'}님을 위해 고른 오늘의 추천`}
                   </span>
                   <h2 className="text-white text-5xl font-bold mt-1">{v.asset_nm}</h2>
                 </div>

@@ -58,7 +58,7 @@ export function isImageUrl(url: string | null | undefined): boolean {
   return !!url && (url.startsWith('http') || url.startsWith('/'))
 }
 
-export function getFallbackGradient(name: string): string {
-  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+export function getFallbackGradient(name: string | undefined | null): string {
+  const hash = (name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0)
   return FALLBACK_GRADIENTS[hash % FALLBACK_GRADIENTS.length]
 }
