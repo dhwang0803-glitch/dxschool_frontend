@@ -274,6 +274,7 @@ export default function HomePage() {
               poster_url: v.poster_url,
               backdrop_url: v.backdrop_url ?? null,
               score: v.score ?? undefined,
+              source_title: v.source_title ?? null,
               rank: v.rank ?? null,
               rec_reason: v.rec_reason ?? null,
               rec_sentence: v.rec_sentence ?? null,

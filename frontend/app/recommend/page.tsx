@@ -70,6 +70,11 @@ function PatternSection({ pattern, active }: { pattern: Pattern; active: boolean
                   </span>
                 </div>
               </div>
+              {vod.source_title && (
+                <p className="text-white/50 text-xs mt-1 px-1 truncate">
+                  &lsquo;{vod.source_title}&rsquo; 시청 기록 기반
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -133,6 +138,7 @@ export default function RecommendPage() {
               asset_nm: v.asset_nm,
               poster_url: v.poster_url,
               score: v.score,
+              source_title: v.source_title ?? null,
             })),
           })))
         }
