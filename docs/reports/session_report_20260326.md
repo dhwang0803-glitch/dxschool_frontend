@@ -68,6 +68,12 @@
 - **요구사항**: 축제 팝업은 최소화 후 10초 뒤 자동 제거
 - **수정**: local_gov 타입은 visible(10초) → minimized(10초) → 자동 dismiss
 
+### 9. 에피소드 전환 시 이전 광고 팝업 잔류 (2026-04-06)
+- **증상**: 에피소드 전환 후 이전 영상의 광고 팝업(visible/minimized)이 화면에 남아있음
+- **원인**: `playEpisode`에서 `useAdSocket`의 `ads` 배열은 `removeAd`로 비우지만, `ShoppingAdPopup` 내부 `items` state는 별도 관리되어 동기화 안 됨
+- **수정**: `ads`가 비워지면 `items`도 같이 비우고 자동 타이머도 정리하는 useEffect 추가
+- **이슈**: FE-002
+
 ---
 
 ## 최종 팝업 동작

@@ -53,7 +53,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   useEffect(() => {
     setAdUserId(localStorage.getItem('user_id'))
   }, [])
-  const { ads, lastResponse, lastAlert, sendPlaybackUpdate, sendAction, removeAd, setLastResponse, setLastAlert, reconnect } = useAdSocket(adUserId)
+  const { ads, lastResponse, lastAlert, sendPlaybackUpdate, sendAction, removeAd, clearAds, setLastResponse, setLastAlert, reconnect } = useAdSocket(adUserId)
   const playbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const currentAssetIdRef = useRef<string | null>(null)
   const playbackStartTimeRef = useRef<number>(0) // 재생 시작 시각 (광고 grace period용)
@@ -224,7 +224,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     playingEpisodeRef.current = episodeTitle
 
     // 에피소드 전환: 기존 광고 + 타이머 초기화 + WebSocket 재연결 (_sent_ad_ids 리셋)
-    ads.forEach((ad) => removeAd(ad.vod_id))
+    clearAds()
     reconnect()
     stopPlaybackTimer()
     lastSentTimeRef.current = -1
@@ -396,6 +396,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
             </button>
             {/* 광고 팝업 — 플레이어 안쪽 */}
             <ShoppingAdPopup
+              key={playingEpisode || 'none'}
               ads={ads}
               lastResponse={lastResponse}
               lastAlert={lastAlert}

@@ -157,7 +157,8 @@ frontend/
 - pause/buffer 후 resume 시 타이머 리셋 안 함 (grace 중복 방지)
 
 ### 에피소드 전환 시
-- 기존 광고 전부 제거
+- 기존 광고 전부 제거 (`ads` 배열 + `ShoppingAdPopup` 내부 `items` state 동기화)
+- 자동 최소화/dismiss 타이머 전부 정리
 - playback 타이머 정지 + 초기화
 - **WebSocket 재연결** (백엔드 `_sent_ad_ids` 초기화)
 

@@ -95,6 +95,15 @@ export default function ShoppingAdPopup({
     return () => clearTimeout(t)
   }, [toast])
 
+  // ads가 비워지면 items도 동기화 (에피소드 전환 시 팝업 제거)
+  useEffect(() => {
+    if (ads.length === 0 && items.length > 0) {
+      Object.values(autoTimers.current).forEach(clearTimeout)
+      autoTimers.current = {}
+      setItems([])
+    }
+  }, [ads, items.length])
+
   // cleanup
   useEffect(() => {
     return () => {
