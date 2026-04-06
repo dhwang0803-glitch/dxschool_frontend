@@ -77,16 +77,16 @@ function WatchingSection({ items }: { items: WatchingItem[] }) {
 }
 
 /** rec_reason 유형별 태그 라벨 (스마트추천과 동일 로직) */
-function getReasonTag(reason: string | null | undefined): string {
+function getReasonTag(reason: string | null | undefined, userId?: string | null): string {
   if (!reason) return '나만을 위한 추천'
   if (/배우|출연|님\s*작품/.test(reason)) return '자주 보는 출연진의 작품'
   if (/감독/.test(reason)) return '최애 감독의 연출작'
   if (/장르/.test(reason)) return '즐겨 보는 장르'
-  return '취향 기반 추천'
+  return `${shortId(userId ?? null)}님 맞춤 추천`
 }
 
 /* ── TOP10 섹션 ── */
-function Top10Section({ section }: { section: PersonalSection }) {
+function Top10Section({ section, userId }: { section: PersonalSection; userId?: string | null }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [hovered, setHovered] = useState(false)
 
@@ -142,7 +142,7 @@ function Top10Section({ section }: { section: PersonalSection }) {
                         <span className="inline-block px-2 py-1 rounded bg-blue-500/85 text-white text-[11px] font-medium backdrop-blur-sm shadow-lg">
                           {vod.source_title
                             ? `시청했던 '${vod.source_title}'의 분위기와 유사한 영상`
-                            : getReasonTag(vod.rec_reason)}
+                            : getReasonTag(vod.rec_reason, userId)}
                         </span>
                       </div>
                     </div>
@@ -220,11 +220,13 @@ export default function HomePage() {
   const [sections, setSections] = useState<{ title: string; vods: VOD[] }[]>([])
   const [personalSections, setPersonalSections] = useState<PersonalSection[]>([])
   const [watchingItems, setWatchingItems] = useState<WatchingItem[]>([])
+  const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       const userId = localStorage.getItem('user_id')
+      setUserId(userId)
       try {
         const [bannerRes, sectionsRes, watchingRes, personalRes] = await Promise.allSettled([
           getBanner(),
@@ -335,7 +337,7 @@ export default function HomePage() {
       ))}
       {personalSections.map((sec, i) =>
         isTop10(sec) ? (
-          <Top10Section key={`personal-${i}`} section={sec} />
+          <Top10Section key={`personal-${i}`} section={sec} userId={userId} />
         ) : (
           <PersonalHorizontalSection key={`personal-${i}`} section={sec} />
         )
