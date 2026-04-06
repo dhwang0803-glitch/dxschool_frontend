@@ -70,11 +70,6 @@ function PatternSection({ pattern, active }: { pattern: Pattern; active: boolean
                   </span>
                 </div>
               </div>
-              {vod.source_title && (
-                <p className="text-white/50 text-xs mt-1 px-1 truncate">
-                  &lsquo;{vod.source_title}&rsquo; 시청 기록 기반
-                </p>
-              )}
             </div>
           ))}
         </div>
@@ -130,7 +125,7 @@ export default function RecommendPage() {
           })))
         }
         if (data.patterns) {
-          setPatterns(data.patterns.map((p: any) => ({
+          setPatterns(data.patterns.filter((p: any) => p.vod_list && p.vod_list.length >= 10).map((p: any) => ({
             pattern_rank: p.pattern_rank,
             pattern_reason: p.pattern_reason,
             vod_list: p.vod_list.map((v: any) => ({

@@ -42,14 +42,7 @@ export default function HorizontalSection({ title, vods }: Props) {
           className="flex gap-3 overflow-x-auto px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {vods.map(vod => (
-            <div key={vod.series_id} className="shrink-0">
-              <PosterCard vod={vod} />
-              {vod.source_title && (
-                <p className="text-white/50 text-xs mt-1 px-1 truncate w-60">
-                  &lsquo;{vod.source_title}&rsquo; 시청 기록 기반
-                </p>
-              )}
-            </div>
+            <PosterCard key={vod.series_id} vod={vod} />
           ))}
         </div>
 

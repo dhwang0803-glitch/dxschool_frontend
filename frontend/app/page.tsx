@@ -140,7 +140,9 @@ function Top10Section({ section }: { section: PersonalSection }) {
                       {/* 추천 이유 태그 — 우측 상단 */}
                       <div className="absolute top-2 right-2">
                         <span className="inline-block px-2 py-1 rounded bg-blue-500/85 text-white text-[11px] font-medium backdrop-blur-sm shadow-lg">
-                          {getReasonTag(vod.rec_reason)}
+                          {vod.source_title
+                            ? `시청했던 '${vod.source_title}'의 분위기와 유사한 영상`
+                            : getReasonTag(vod.rec_reason)}
                         </span>
                       </div>
                     </div>
@@ -265,21 +267,23 @@ export default function HomePage() {
         }
 
         if (personalRes.status === 'fulfilled' && personalRes.value) {
-          setPersonalSections(personalRes.value.sections.map((sec: any) => ({
-            title: getPersonalTitle(sec.genre, userId),
-            view_ratio: sec.view_ratio ?? null,
-            vods: sec.vod_list.map((v: any) => ({
-              series_id: v.series_nm,
-              asset_nm: v.asset_nm,
-              poster_url: v.poster_url,
-              backdrop_url: v.backdrop_url ?? null,
-              score: v.score ?? undefined,
-              source_title: v.source_title ?? null,
-              rank: v.rank ?? null,
-              rec_reason: v.rec_reason ?? null,
-              rec_sentence: v.rec_sentence ?? null,
-            })),
-          })))
+          setPersonalSections(personalRes.value.sections
+            .filter((sec: any) => sec.vod_list && sec.vod_list.length >= 10)
+            .map((sec: any) => ({
+              title: getPersonalTitle(sec.genre, userId),
+              view_ratio: sec.view_ratio ?? null,
+              vods: sec.vod_list.map((v: any) => ({
+                series_id: v.series_nm,
+                asset_nm: v.asset_nm,
+                poster_url: v.poster_url,
+                backdrop_url: v.backdrop_url ?? null,
+                score: v.score ?? undefined,
+                source_title: v.source_title ?? null,
+                rank: v.rank ?? null,
+                rec_reason: v.rec_reason ?? null,
+                rec_sentence: v.rec_sentence ?? null,
+              })),
+            })))
         }
 
         // API 전부 실패 시 Top10 목 데이터 (디자인 확인용, API 연결 시 제거)
