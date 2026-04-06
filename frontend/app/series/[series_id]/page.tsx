@@ -137,6 +137,21 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     }, 30000)
   }, [seriesNm, stopHeartbeat, updateLocalProgress])
 
+  // 현재 진행률 즉시 전송 (에피소드 전환·페이지 이탈 시)
+  const flushProgress = useCallback(() => {
+    const player = playerRef.current
+    const epTitle = playingEpisodeRef.current
+    if (!player || !epTitle) return
+    try {
+      const current = player.getCurrentTime()
+      const duration = player.getDuration()
+      if (!duration) return
+      const rate = Math.min(100, Math.round((current / duration) * 100))
+      postEpisodeProgress(seriesNm, epTitle, rate).catch(() => {})
+      updateLocalProgress(epTitle, rate)
+    } catch { /* ignore */ }
+  }, [seriesNm, updateLocalProgress])
+
   // YouTube 플레이어 초기화 (videoId로 히어로 영역에 재생, resumeRate가 있으면 해당 지점부터)
   const initYouTubePlayer = useCallback((videoId: string, resumeRate?: number) => {
     stopHeartbeat()
@@ -218,6 +233,9 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
 
   // 에피소드 재생 시작
   const playEpisode = useCallback(async (episodeTitle: string) => {
+    // 이전 에피소드 진행률 즉시 전송
+    flushProgress()
+
     setPlayerError(false)
     setActiveEpisode(episodeTitle)
     setPlayingEpisode(episodeTitle)
@@ -321,9 +339,17 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     }
   }, [loading, episodeFromQuery, progress])
 
-  // cleanup
+  // 페이지 이탈 시 진행률 즉시 전송 (브라우저 탭 닫기, 새로고침)
+  useEffect(() => {
+    const handleBeforeUnload = () => flushProgress()
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [flushProgress])
+
+  // cleanup (SPA 내 페이지 전환)
   useEffect(() => {
     return () => {
+      flushProgress()
       stopHeartbeat()
       stopPlaybackTimer()
       if (playerRef.current) {
@@ -331,7 +357,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         playerRef.current = null
       }
     }
-  }, [stopHeartbeat, stopPlaybackTimer])
+  }, [flushProgress, stopHeartbeat, stopPlaybackTimer])
 
   const toggleWishlist = async () => {
     try {

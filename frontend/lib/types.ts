@@ -15,6 +15,7 @@ export type VOD = {
   cast_guest?: string
   smry?: string
   score?: number
+  source_title?: string | null
   is_free?: boolean
   youtube_url?: string | null
 }

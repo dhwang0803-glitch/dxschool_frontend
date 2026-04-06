@@ -125,7 +125,7 @@ export default function RecommendPage() {
           })))
         }
         if (data.patterns) {
-          setPatterns(data.patterns.map((p: any) => ({
+          setPatterns(data.patterns.filter((p: any) => p.vod_list && p.vod_list.length >= 10).map((p: any) => ({
             pattern_rank: p.pattern_rank,
             pattern_reason: p.pattern_reason,
             vod_list: p.vod_list.map((v: any) => ({
@@ -133,6 +133,7 @@ export default function RecommendPage() {
               asset_nm: v.asset_nm,
               poster_url: v.poster_url,
               score: v.score,
+              source_title: v.source_title ?? null,
             })),
           })))
         }
