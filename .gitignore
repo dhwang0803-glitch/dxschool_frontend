@@ -18,6 +18,9 @@ secrets.json
 # Skills (API 문서 등 내부 참조용)
 skills/
 
+# Debug log (Notion 이슈 등록용 내부 참고 문서)
+docs/DEBUG_LOG.md
+
 # Data files
 data/
 *.parquet
