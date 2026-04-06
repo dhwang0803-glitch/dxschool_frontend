@@ -6,7 +6,7 @@ import { VOD, Pattern, isImageUrl, getFallbackGradient } from '@/lib/types'
 import { getRecommend } from '@/lib/api'
 
 /** pattern_reason 유형별 태그 라벨 */
-function getReasonTag(reason: string): string {
+function getReasonTag(reason: string, userId?: string | null): string {
   // 출연진 기반: "OOO 배우 출연작을", "OOO 배우가 출연한", "OOO 님 작품"
   if (/배우|출연|님\s*작품/.test(reason)) return '자주 보는 출연진의 작품'
   // 감독 기반: "OOO 감독 작품을"
@@ -14,7 +14,8 @@ function getReasonTag(reason: string): string {
   // 장르 기반: "OOO 장르를 즐겨 보셨어요"
   if (/장르/.test(reason)) return '즐겨 보는 장르'
   // 폴백
-  return '취향 기반 추천'
+  const uid = userId ? userId.slice(0, 5) : 'user'
+  return `${uid}님 맞춤 추천`
 }
 
 /** "배우" → "님" 으로 치환하여 직업 표현 통일 */
@@ -24,10 +25,10 @@ function cleanReason(reason: string): string {
     .replace(/(\S+)\s*배우가?\s*(출연작|출연한)/g, '$1 님 $2')
 }
 
-function PatternSection({ pattern, active }: { pattern: Pattern; active: boolean }) {
+function PatternSection({ pattern, active, userId }: { pattern: Pattern; active: boolean; userId?: string | null }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [hovered, setHovered] = useState(false)
-  const reasonTag = getReasonTag(pattern.pattern_reason)
+  const reasonTag = getReasonTag(pattern.pattern_reason, userId)
 
   const scroll = (dir: 'left' | 'right') => {
     if (!scrollRef.current) return
@@ -209,7 +210,7 @@ export default function RecommendPage() {
       {/* 패턴 섹션들 */}
       <div className="mt-6 space-y-10">
         {patterns.map((pattern, i) => (
-          <PatternSection key={i} pattern={pattern} active={true} />
+          <PatternSection key={i} pattern={pattern} active={true} userId={userId} />
         ))}
       </div>
     </main>
