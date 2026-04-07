@@ -259,13 +259,15 @@ export default function HomePage() {
         }
 
         if (watchingRes.status === 'fulfilled' && watchingRes.value) {
-          setWatchingItems(watchingRes.value.items.map((item: any) => ({
-            series_id: item.series_nm,
-            asset_nm: item.episode_title,
-            poster_url: item.poster_url,
-            strt_dt: item.watched_at?.slice(0, 10),
-            completion_rate: item.completion_rate,
-          })))
+          setWatchingItems(watchingRes.value.items
+            .filter((item: any) => item.completion_rate > 0 && item.completion_rate < 100)
+            .map((item: any) => ({
+              series_id: item.series_nm,
+              asset_nm: item.episode_title,
+              poster_url: item.poster_url,
+              strt_dt: item.watched_at?.slice(0, 10),
+              completion_rate: item.completion_rate,
+            })))
         }
 
         if (personalRes.status === 'fulfilled' && personalRes.value) {

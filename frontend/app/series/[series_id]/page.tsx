@@ -282,10 +282,11 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   useEffect(() => {
     async function load() {
       try {
-        const [episodesRes, progressRes, purchaseRes] = await Promise.allSettled([
+        const [episodesRes, progressRes, purchaseRes, similarRes] = await Promise.allSettled([
           getEpisodes(seriesNm),
           getProgress(seriesNm),
           getPurchaseCheck(seriesNm),
+          getSimilar(seriesNm),
         ])
 
         let loadedEpisodes: any[] = []
@@ -320,6 +321,16 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         setPurchased(purchaseCheckOk || hasProgress || fromWatching || allFree)
         if (purchaseRes.status === 'fulfilled' && purchaseRes.value) {
           setPurchaseInfo(purchaseRes.value)
+        }
+
+        if (similarRes.status === 'fulfilled' && similarRes.value) {
+          const items = similarRes.value.items || similarRes.value
+          setSimilar((Array.isArray(items) ? items : []).map((v: any) => ({
+            series_id: v.series_id || v.series_nm,
+            asset_nm: v.asset_nm,
+            poster_url: v.poster_url,
+            score: v.score,
+          })))
         }
       } catch (e) {
         console.error('시리즈 데이터 로드 실패:', e)
@@ -597,6 +608,20 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
             })}
           </div>
         </div>
+
+        {/* 관련 콘텐츠 */}
+        {similar.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-white font-semibold text-base mb-3">관련 콘텐츠</h2>
+            <div className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {similar.map(vod => (
+                <div key={vod.series_id} className="shrink-0 w-60">
+                  <PosterCard vod={vod} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   )
