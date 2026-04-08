@@ -66,11 +66,12 @@ export default function PurchasePage({ params }: { params: Promise<{ series_id: 
     )
   }
 
-  if (isFree) {
+  if (isFree && options.length === 0) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
         <div className="bg-zinc-900 rounded-2xl w-full max-w-sm overflow-hidden border border-white/10 p-6 text-center">
           <p className="text-white font-semibold">무료 콘텐츠입니다</p>
+          <p className="text-white/50 text-sm mt-2">시리즈 페이지에서 바로 시청할 수 있습니다.</p>
           <button onClick={() => router.back()} className="mt-4 px-6 py-2 rounded-xl bg-blue-500 text-white text-sm">
             돌아가기
           </button>

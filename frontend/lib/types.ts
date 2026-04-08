@@ -4,6 +4,7 @@ export type VOD = {
   series_id: string
   asset_nm: string
   poster_url: string | null
+  backdrop_url?: string | null
   genre?: string
   ct_cl?: string
   rating?: string
@@ -14,6 +15,7 @@ export type VOD = {
   cast_guest?: string
   smry?: string
   score?: number
+  source_title?: string | null
   is_free?: boolean
   youtube_url?: string | null
 }
@@ -36,7 +38,14 @@ export type Episode = {
 export type Pattern = {
   pattern_rank: number
   pattern_reason: string
+  tag_affinity?: number | null
   vod_list: VOD[]
+}
+
+/** dev 서버 여부 (release 호스트가 아닌 경우) */
+export function isDevServer(): boolean {
+  if (typeof window === 'undefined') return false
+  return !window.location.hostname.includes('release')
 }
 
 // 포스터 URL 유틸
@@ -57,7 +66,7 @@ export function isImageUrl(url: string | null | undefined): boolean {
   return !!url && (url.startsWith('http') || url.startsWith('/'))
 }
 
-export function getFallbackGradient(name: string): string {
-  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+export function getFallbackGradient(name: string | undefined | null): string {
+  const hash = (name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0)
   return FALLBACK_GRADIENTS[hash % FALLBACK_GRADIENTS.length]
 }

@@ -1,0 +1,11 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_API_URL=https://vod-api-dev-121620013082.asia-northeast3.run.app'
+      - '-t'
+      - 'gcr.io/dxschool-frontend-2026/dxschool-frontend'
+      - '.'
+images:
+  - 'gcr.io/dxschool-frontend-2026/dxschool-frontend'

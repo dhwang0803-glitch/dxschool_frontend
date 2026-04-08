@@ -10,10 +10,19 @@ const WS_BASE = getWsBase()
 
 export type AdPopup = {
   type: 'ad_popup'
-  ad_type: 'local_gov' | 'seasonal_market'
+  ad_type: 'local_gov_popup' | 'local_gov' | 'seasonal_market'
   vod_id: string
   time_sec: number
-  data: Record<string, any>
+  data: {
+    ad_image_url?: string | null
+    product_name?: string | null
+    channel?: string | null
+    start_time?: string | null
+    end_time?: string | null
+    broadcast_date?: string | null
+    score?: number
+    [key: string]: any
+  }
 }
 
 export type AdResponse = {
@@ -41,6 +50,8 @@ export function useAdSocket(userId: string | null) {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const retriesRef = useRef(0)
   const MAX_RETRIES = 10
+  const ignoreAdsUntilRef = useRef<number>(0)
+  const readyForAdsRef = useRef(false) // playback_update 전송 후에만 ad 수신 허용
 
   const connect = useCallback(() => {
     if (!userId) return
@@ -57,6 +68,7 @@ export function useAdSocket(userId: string | null) {
       try {
         const msg: ServerMessage = JSON.parse(e.data)
         if (msg.type === 'ad_popup') {
+          if (!readyForAdsRef.current || Date.now() < ignoreAdsUntilRef.current) return
           setAds((prev) => {
             if (prev.some((a) => a.vod_id === msg.vod_id)) return prev
             return [...prev, msg as AdPopup]
@@ -94,6 +106,7 @@ export function useAdSocket(userId: string | null) {
   const sendPlaybackUpdate = useCallback((vodId: string, timeSec: number) => {
     const ws = wsRef.current
     if (ws?.readyState === WebSocket.OPEN) {
+      readyForAdsRef.current = true
       ws.send(JSON.stringify({ type: 'playback_update', vod_id: vodId, time_sec: timeSec }))
     }
   }, [])
@@ -109,5 +122,20 @@ export function useAdSocket(userId: string | null) {
     setAds((prev) => prev.filter((a) => a.vod_id !== vodId))
   }, [])
 
-  return { ads, lastResponse, lastAlert, sendPlaybackUpdate, sendAction, removeAd, setLastResponse, setLastAlert }
+  const clearAds = useCallback(() => {
+    setAds([])
+  }, [])
+
+  // WebSocket 강제 재연결 (에피소드 전환 시 _sent_ad_ids 초기화용)
+  const reconnect = useCallback(() => {
+    readyForAdsRef.current = false // playback_update 전송 전까지 ad 무시
+    ignoreAdsUntilRef.current = Date.now() + 5000 // 재연결 후 5초간 ad_popup 무시
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+    setTimeout(connect, 300)
+  }, [connect])
+
+  return { ads, lastResponse, lastAlert, sendPlaybackUpdate, sendAction, removeAd, clearAds, setLastResponse, setLastAlert, reconnect }
 }
