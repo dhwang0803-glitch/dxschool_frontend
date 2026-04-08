@@ -38,7 +38,14 @@ export type Episode = {
 export type Pattern = {
   pattern_rank: number
   pattern_reason: string
+  tag_affinity?: number | null
   vod_list: VOD[]
+}
+
+/** dev 서버 여부 (release 호스트가 아닌 경우) */
+export function isDevServer(): boolean {
+  if (typeof window === 'undefined') return false
+  return !window.location.hostname.includes('release')
 }
 
 // 포스터 URL 유틸

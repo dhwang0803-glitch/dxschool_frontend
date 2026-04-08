@@ -318,6 +318,31 @@ export default function HomePage() {
     load()
   }, [])
 
+  // 탭 복귀 시 이어보기 목록 re-fetch (캐시 무효화)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        getWatching()
+          .then(res => {
+            if (res?.items) {
+              setWatchingItems(res.items
+                .filter((item: any) => item.completion_rate > 0 && item.completion_rate < 100)
+                .map((item: any) => ({
+                  series_id: item.series_nm,
+                  asset_nm: item.episode_title,
+                  poster_url: item.poster_url,
+                  strt_dt: item.watched_at?.slice(0, 10),
+                  completion_rate: item.completion_rate,
+                })))
+            }
+          })
+          .catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
+
   /** TOP10 섹션인지 판별: vod 중 rank가 있는 항목이 존재 */
   const isTop10 = (sec: PersonalSection) =>
     sec.vods.some(v => v.rank != null)

@@ -58,6 +58,7 @@ export const getRecommend = (userId: string) => apiFetch(`/recommend/${encodeURI
 export const getSimilar = (assetId: string) => apiFetch(`/similar/${encodeURIComponent(assetId)}`);
 
 // 시리즈
+export const getSeriesDetail = (seriesNm: string) => apiFetch(`/series/${encodeURIComponent(seriesNm)}/detail`);
 export const getEpisodes = (seriesNm: string) => apiFetch(`/series/${encodeURIComponent(seriesNm)}/episodes`);
 export const getProgress = (seriesNm: string) => apiFetch(`/series/${encodeURIComponent(seriesNm)}/progress`);
 export const getPurchaseCheck = (seriesNm: string) => apiFetch(`/series/${encodeURIComponent(seriesNm)}/purchase-check`);
@@ -66,11 +67,11 @@ export const getPurchaseOptions = (seriesNm: string) => apiFetch(`/series/${enco
 // VOD 상세
 export const getVODDetail = (assetId: string) => apiFetch(`/vod/${encodeURIComponent(assetId)}`);
 
-// 에피소드 진행률 전송 (heartbeat)
-export const postEpisodeProgress = (seriesNm: string, assetNm: string, completionRate: number) =>
+// 에피소드 진행률 전송 (heartbeat / 즉시 반영)
+export const postEpisodeProgress = (seriesNm: string, assetNm: string, completionRate: number, immediate = false) =>
   apiFetch(`/series/${encodeURIComponent(seriesNm)}/episodes/${encodeURIComponent(assetNm)}/progress`, {
     method: "POST",
-    body: JSON.stringify({ completion_rate: completionRate }),
+    body: JSON.stringify({ completion_rate: completionRate, ...(immediate && { immediate: true }) }),
   });
 
 // 검색

@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import PosterCard from '@/components/PosterCard'
-import { VOD, Pattern, isImageUrl, getFallbackGradient } from '@/lib/types'
+import { VOD, Pattern, isImageUrl, getFallbackGradient, isDevServer } from '@/lib/types'
 import { getRecommend } from '@/lib/api'
 
 /** pattern_reason 유형별 태그 라벨 */
@@ -25,7 +25,7 @@ function cleanReason(reason: string): string {
     .replace(/(\S+)\s*배우가?\s*(출연작|출연한)/g, '$1 님 $2')
 }
 
-function PatternSection({ pattern, active, userId }: { pattern: Pattern; active: boolean; userId?: string | null }) {
+function PatternSection({ pattern, active, userId, devMode }: { pattern: Pattern; active: boolean; userId?: string | null; devMode?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [hovered, setHovered] = useState(false)
   const reasonTag = getReasonTag(pattern.pattern_reason, userId)
@@ -41,8 +41,11 @@ function PatternSection({ pattern, active, userId }: { pattern: Pattern; active:
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="px-6 mb-3">
+      <div className="px-6 mb-3 flex items-baseline gap-3">
         <h3 className="text-white font-semibold text-xl mt-1">{cleanReason(pattern.pattern_reason)}</h3>
+        {devMode && pattern.tag_affinity != null && (
+          <span className="text-yellow-400 text-sm font-medium">선호도 {pattern.tag_affinity.toFixed(2)}</span>
+        )}
       </div>
       <div className="relative">
         <button
@@ -70,6 +73,14 @@ function PatternSection({ pattern, active, userId }: { pattern: Pattern; active:
                     {reasonTag}
                   </span>
                 </div>
+                {/* dev 전용: 신뢰도 점수 */}
+                {devMode && vod.score != null && (
+                  <div className="absolute bottom-2 right-2 z-10 pointer-events-none">
+                    <span className="inline-block px-2 py-0.5 rounded bg-black/70 text-green-400 text-[11px] font-mono backdrop-blur-sm">
+                      신뢰도 {vod.score.toFixed(2)}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -97,6 +108,7 @@ export default function RecommendPage() {
   const [source, setSource] = useState<'personalized' | 'popular_fallback' | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [devMode, setDevMode] = useState(false)
 
   useEffect(() => {
     if (topVods.length === 0) return
@@ -110,6 +122,7 @@ export default function RecommendPage() {
     async function load() {
       const uid = localStorage.getItem('user_id')
       setUserId(uid)
+      setDevMode(isDevServer())
       if (!uid) { setLoading(false); return }
       try {
         const data = await getRecommend(uid)
@@ -129,6 +142,7 @@ export default function RecommendPage() {
           setPatterns(data.patterns.filter((p: any) => p.vod_list && p.vod_list.length >= 10).map((p: any) => ({
             pattern_rank: p.pattern_rank,
             pattern_reason: p.pattern_reason,
+            tag_affinity: p.tag_affinity ?? null,
             vod_list: p.vod_list.map((v: any) => ({
               series_id: v.series_id,
               asset_nm: v.asset_nm,
@@ -210,7 +224,7 @@ export default function RecommendPage() {
       {/* 패턴 섹션들 */}
       <div className="mt-6 space-y-10">
         {patterns.map((pattern, i) => (
-          <PatternSection key={i} pattern={pattern} active={true} userId={userId} />
+          <PatternSection key={i} pattern={pattern} active={true} userId={userId} devMode={devMode} />
         ))}
       </div>
     </main>
