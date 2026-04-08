@@ -88,7 +88,7 @@ export default function GNB() {
           {/* 로고 */}
           <div className="flex-1">
             <Link href="/">
-              <img src="/logo.png" alt="Hello+" className="h-7" />
+              <img src="/new_logo.png" alt="Hello+" className="h-7" />
             </Link>
           </div>
 
