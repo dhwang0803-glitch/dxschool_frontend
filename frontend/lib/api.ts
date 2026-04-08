@@ -58,6 +58,7 @@ export const getRecommend = (userId: string) => apiFetch(`/recommend/${encodeURI
 export const getSimilar = (assetId: string) => apiFetch(`/similar/${encodeURIComponent(assetId)}`);
 
 // 시리즈
+export const getSeriesDetail = (seriesNm: string) => apiFetch(`/series/${encodeURIComponent(seriesNm)}/detail`);
 export const getEpisodes = (seriesNm: string) => apiFetch(`/series/${encodeURIComponent(seriesNm)}/episodes`);
 export const getProgress = (seriesNm: string) => apiFetch(`/series/${encodeURIComponent(seriesNm)}/progress`);
 export const getPurchaseCheck = (seriesNm: string) => apiFetch(`/series/${encodeURIComponent(seriesNm)}/purchase-check`);

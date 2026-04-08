@@ -6,7 +6,7 @@ import PosterCard from '@/components/PosterCard'
 import ShoppingAdPopup from '@/components/ShoppingAdPopup'
 import { VOD, isImageUrl, getFallbackGradient } from '@/lib/types'
 import { useAdSocket } from '@/lib/useAdSocket'
-import { getEpisodes, getProgress, getPurchaseCheck, getSimilar, addWishlist, removeWishlist, getVODDetail, postEpisodeProgress } from '@/lib/api'
+import { getSeriesDetail, getEpisodes, getProgress, getPurchaseCheck, getSimilar, addWishlist, removeWishlist, getVODDetail, postEpisodeProgress } from '@/lib/api'
 
 declare global {
   interface Window {
@@ -33,6 +33,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
   const [isFree, setIsFree] = useState(false)   // 전체 무료
   const [hasFree, setHasFree] = useState(false)  // 일부 무료
+  const [seriesMeta, setSeriesMeta] = useState<{ genre?: string; rating?: string; director?: string; cast_lead?: string; cast_guest?: string; smry?: string; backdrop_url?: string } | null>(null)
 
   // YouTube 플레이어 상태
   const [playing, setPlaying] = useState(false)
@@ -40,6 +41,8 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const [playerError, setPlayerError] = useState(false)
   const [playerLoading, setPlayerLoading] = useState(false)
   const [activeEpisode, setActiveEpisode] = useState<string | null>(null)
+  const [nextEpPopup, setNextEpPopup] = useState<{ episodeTitle: string; isFree: boolean; countdown: number } | null>(null)
+  const nextEpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const playerRef = useRef<any>(null)
   const playerWrapperRef = useRef<HTMLDivElement>(null)
@@ -47,6 +50,8 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const episodeRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const playingEpisodeRef = useRef<string | null>(null)
+  const playEpisodeRef = useRef<(ep: string) => void>(() => {})
+  const showNextEpRef = useRef<(epTitle: string) => void>(() => {})
   const autoplayRef = useRef(false)
 
   // 광고 팝업 WebSocket
@@ -205,6 +210,8 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                   postEpisodeProgress(seriesNm, playingEpisodeRef.current, 100).catch(() => {})
                   updateLocalProgress(playingEpisodeRef.current, 100)
                 }
+                // 다음 에피소드 팝업 트리거
+                showNextEpRef.current(playingEpisodeRef.current)
               }
             }
           },
@@ -232,8 +239,47 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     }, 200)
   }, [seriesNm, startHeartbeat, stopHeartbeat, startPlaybackTimer, stopPlaybackTimer, updateLocalProgress])
 
+  // 다음 에피소드 팝업
+  const clearNextEpTimer = useCallback(() => {
+    if (nextEpTimerRef.current) {
+      clearInterval(nextEpTimerRef.current)
+      nextEpTimerRef.current = null
+    }
+  }, [])
+
+  const dismissNextEpPopup = useCallback(() => {
+    clearNextEpTimer()
+    setNextEpPopup(null)
+  }, [clearNextEpTimer])
+
+  const showNextEpisodePopup = useCallback((currentEpTitle: string) => {
+    const currentIdx = episodes.findIndex((ep: any) => ep.episode_title === currentEpTitle)
+    if (currentIdx < 0 || currentIdx >= episodes.length - 1) return // 마지막 에피소드면 표시 안 함
+    const nextEp = episodes[currentIdx + 1]
+    const canPlay = purchased || nextEp.is_free
+    setNextEpPopup({ episodeTitle: nextEp.episode_title, isFree: nextEp.is_free || false, countdown: 10 })
+
+    if (canPlay) {
+      clearNextEpTimer()
+      let count = 10
+      nextEpTimerRef.current = setInterval(() => {
+        count -= 1
+        if (count <= 0) {
+          clearNextEpTimer()
+          setNextEpPopup(null)
+          playEpisodeRef.current(nextEp.episode_title)
+        } else {
+          setNextEpPopup(prev => prev ? { ...prev, countdown: count } : null)
+        }
+      }, 1000)
+    }
+  }, [episodes, purchased, clearNextEpTimer])
+  showNextEpRef.current = showNextEpisodePopup
+
   // 에피소드 재생 시작
   const playEpisode = useCallback(async (episodeTitle: string) => {
+    // 다음화 팝업 닫기
+    dismissNextEpPopup()
     // 이전 에피소드 진행률 즉시 전송
     flushProgress()
 
@@ -277,17 +323,19 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
     setPlaying(false)
     setPlayerLoading(false)
     heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [episodes, progress, initYouTubePlayer])
+  }, [episodes, progress, initYouTubePlayer, dismissNextEpPopup])
+  playEpisodeRef.current = playEpisode
 
   // 데이터 로드
   useEffect(() => {
     async function load() {
       try {
-        const [episodesRes, progressRes, purchaseRes, similarRes] = await Promise.allSettled([
+        const [episodesRes, progressRes, purchaseRes, similarRes, detailRes] = await Promise.allSettled([
           getEpisodes(seriesNm),
           getProgress(seriesNm),
           getPurchaseCheck(seriesNm),
           getSimilar(seriesNm),
+          getSeriesDetail(seriesNm),
         ])
 
         let loadedEpisodes: any[] = []
@@ -322,6 +370,11 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         setPurchased(purchaseCheckOk || hasProgress || fromWatching || allFree)
         if (purchaseRes.status === 'fulfilled' && purchaseRes.value) {
           setPurchaseInfo(purchaseRes.value)
+        }
+
+        if (detailRes.status === 'fulfilled' && detailRes.value) {
+          setSeriesMeta(detailRes.value)
+          if (detailRes.value.poster_url && !posterUrl) setPosterUrl(detailRes.value.poster_url)
         }
 
         if (similarRes.status === 'fulfilled' && similarRes.value) {
@@ -364,6 +417,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
       flushProgress()
       stopHeartbeat()
       stopPlaybackTimer()
+      clearNextEpTimer()
       if (playerRef.current) {
         playerRef.current.destroy()
         playerRef.current = null
@@ -404,16 +458,18 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         {playing && !playerError ? (
           /* YouTube 플레이어 모드 — 컨테이너 전체화면 (팝업 오버레이 유지) */
           <div id="player-container" className="absolute inset-0 bg-black">
-            <div className={`absolute inset-0 flex items-center justify-center z-10 ${playerLoading ? '' : 'hidden'}`}>
-              <div className="text-white/50">로딩 중...</div>
-            </div>
+            {playerLoading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="text-white/50">로딩 중...</div>
+              </div>
+            )}
             <div ref={playerWrapperRef} className="absolute inset-0" />
             {playingEpisode && (
-              <div className="absolute top-3 right-3 z-10 px-3 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs">
+              <div className="absolute top-3 right-3 z-10 px-3 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs pointer-events-none">
                 {playingEpisode}
               </div>
             )}
-            {/* 커스텀 전체화면 버튼 */}
+            {/* 커스텀 전체화면 버튼 — YouTube 프로그레스바와 겹치지 않도록 상단 배치 */}
             <button
               onClick={() => {
                 const container = document.getElementById('player-container')
@@ -424,7 +480,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
                   container.requestFullscreen()
                 }
               }}
-              className="absolute bottom-3 right-3 z-[56] w-8 h-8 rounded bg-black/60 hover:bg-black/80
+              className="absolute top-3 left-3 z-[56] w-8 h-8 rounded bg-black/60 hover:bg-black/80
                 flex items-center justify-center text-white/70 hover:text-white transition-colors"
               title="전체화면"
             >
@@ -443,6 +499,49 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
               onClearResponse={() => setLastResponse(null)}
               onClearAlert={() => setLastAlert(null)}
             />
+            {/* 다음 에피소드 자동 재생 팝업 */}
+            {nextEpPopup && (
+              <div className="absolute bottom-16 right-4 z-[57] w-72 bg-black/90 backdrop-blur-md border border-white/15 rounded-2xl p-5 shadow-2xl">
+                <p className="text-white/50 text-xs mb-1">다음 에피소드</p>
+                <p className="text-white font-semibold text-sm mb-3">{nextEpPopup.episodeTitle}</p>
+                {(purchased || nextEpPopup.isFree) ? (
+                  <>
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mb-3">
+                      <div
+                        className="h-full bg-blue-500 rounded-full transition-all duration-1000 ease-linear"
+                        style={{ width: `${((10 - nextEpPopup.countdown) / 10) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-white/40 text-xs mb-3">{nextEpPopup.countdown}초 후 자동 재생</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { dismissNextEpPopup(); playEpisode(nextEpPopup.episodeTitle) }}
+                        className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition-colors"
+                      >
+                        ▶ 바로 재생
+                      </button>
+                      <button
+                        onClick={dismissNextEpPopup}
+                        className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white/60 text-xs transition-colors"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-white/40 text-xs mb-3">구매 후 시청할 수 있습니다</p>
+                    <Link
+                      href={`/purchase/${encodeURIComponent(seriesNm)}`}
+                      className="block text-center py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition-colors"
+                      onClick={dismissNextEpPopup}
+                    >
+                      구매하기
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           /* 포스터 모드 */
@@ -497,7 +596,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
       </div>
 
       {/* 메타데이터 */}
-      <div className="px-6 -mt-20 relative">
+      <div className={`px-6 relative ${playing && !playerError ? '' : '-mt-20'}`}>
         <div className="flex gap-5">
           <div className={`w-28 h-40 rounded-xl shrink-0 shadow-xl border border-white/10 overflow-hidden
             ${!hasImage ? `bg-gradient-to-b ${getFallbackGradient(seriesNm)}` : ''}`}>
@@ -510,6 +609,12 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
               <div className="flex flex-wrap items-center gap-2 mt-2 text-white/50 text-xs">
                 <span>{episodes[0].category}</span>
               </div>
+            )}
+
+            {seriesMeta?.rating && (
+              <span className="inline-block mt-2 px-1.5 py-0.5 text-[10px] font-medium border border-white/30 text-white/60 rounded">
+                {seriesMeta.rating}
+              </span>
             )}
 
             {lastEpisode && (
@@ -548,6 +653,26 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
             </div>
           </div>
         </div>
+
+        {/* 시리즈 메타데이터 (감독/출연진/줄거리) */}
+        {seriesMeta && (seriesMeta.director || seriesMeta.cast_lead || seriesMeta.cast_guest || seriesMeta.smry) && (
+          <div className="mt-6 space-y-3">
+            {seriesMeta.smry && (
+              <p className="text-white/70 text-sm leading-relaxed">{seriesMeta.smry}</p>
+            )}
+            <div className="space-y-1.5 text-xs text-white/50">
+              {seriesMeta.director && (
+                <p><span className="text-white/30">감독</span> <span className="ml-2">{seriesMeta.director}</span></p>
+              )}
+              {seriesMeta.cast_lead && (
+                <p><span className="text-white/30">주연</span> <span className="ml-2">{seriesMeta.cast_lead}</span></p>
+              )}
+              {seriesMeta.cast_guest && (
+                <p><span className="text-white/30">출연</span> <span className="ml-2">{seriesMeta.cast_guest}</span></p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 에피소드 목록 (20개씩 더보기) */}
         <div className="mt-8">
