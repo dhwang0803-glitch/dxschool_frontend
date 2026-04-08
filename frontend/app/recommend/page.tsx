@@ -44,7 +44,7 @@ function PatternSection({ pattern, active, userId, devMode }: { pattern: Pattern
       <div className="px-6 mb-3 flex items-baseline gap-3">
         <h3 className="text-white font-semibold text-xl mt-1">{cleanReason(pattern.pattern_reason)}</h3>
         {devMode && pattern.tag_affinity != null && (
-          <span className="text-yellow-400 text-sm font-medium">선호도 {pattern.tag_affinity.toFixed(2)}</span>
+          <span className="text-yellow-400 text-sm font-medium">선호도 {(pattern.tag_affinity * 100).toFixed(3)}</span>
         )}
       </div>
       <div className="relative">
@@ -77,7 +77,7 @@ function PatternSection({ pattern, active, userId, devMode }: { pattern: Pattern
                 {devMode && vod.score != null && (
                   <div className="absolute bottom-2 right-2 z-10 pointer-events-none">
                     <span className="inline-block px-2 py-0.5 rounded bg-black/70 text-green-400 text-[11px] font-mono backdrop-blur-sm">
-                      신뢰도 {vod.score.toFixed(2)}
+                      신뢰도 {(vod.score * 100).toFixed(3)}
                     </span>
                   </div>
                 )}
