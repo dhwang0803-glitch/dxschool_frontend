@@ -120,11 +120,12 @@ function Top10Section({ section }: { section: PersonalSection }) {
                     {hasImage && (
                       <img src={vod.poster_url!} alt={vod.asset_nm} className="w-full h-full object-cover" />
                     )}
-                    {/* Rank badge */}
+                    {/* Rank number — Netflix style */}
                     {vod.rank != null && (
-                      <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center shadow-lg">
-                        <span className="text-black text-lg font-extrabold leading-none">{vod.rank}</span>
-                      </div>
+                      <span className="absolute top-2 left-2 text-5xl font-black leading-none z-10
+                        text-white drop-shadow-lg select-none">
+                        {String(vod.rank).padStart(2, '0')}
+                      </span>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
                       <span className="text-white text-xs font-medium line-clamp-2 drop-shadow">{vod.asset_nm}</span>
