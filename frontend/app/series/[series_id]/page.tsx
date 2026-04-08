@@ -153,7 +153,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
       const duration = player.getDuration()
       if (!duration) return
       const rate = Math.min(100, Math.round((current / duration) * 100))
-      postEpisodeProgress(seriesNm, epTitle, rate).catch(() => {})
+      postEpisodeProgress(seriesNm, epTitle, rate, true).catch(() => {})
       updateLocalProgress(epTitle, rate)
     } catch { /* ignore */ }
   }, [seriesNm, updateLocalProgress])
@@ -403,6 +403,17 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
       setActiveEpisode(targetEpisode)
     }
   }, [loading, episodeFromQuery, progress])
+
+  // 탭 복귀 시 progress re-fetch (캐시 무효화)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !playing) {
+        getProgress(seriesNm).then(res => { if (res) setProgress(res) }).catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [seriesNm, playing])
 
   // 페이지 이탈 시 진행률 즉시 전송 (브라우저 탭 닫기, 새로고침)
   useEffect(() => {

@@ -67,11 +67,11 @@ export const getPurchaseOptions = (seriesNm: string) => apiFetch(`/series/${enco
 // VOD 상세
 export const getVODDetail = (assetId: string) => apiFetch(`/vod/${encodeURIComponent(assetId)}`);
 
-// 에피소드 진행률 전송 (heartbeat)
-export const postEpisodeProgress = (seriesNm: string, assetNm: string, completionRate: number) =>
+// 에피소드 진행률 전송 (heartbeat / 즉시 반영)
+export const postEpisodeProgress = (seriesNm: string, assetNm: string, completionRate: number, immediate = false) =>
   apiFetch(`/series/${encodeURIComponent(seriesNm)}/episodes/${encodeURIComponent(assetNm)}/progress`, {
     method: "POST",
-    body: JSON.stringify({ completion_rate: completionRate }),
+    body: JSON.stringify({ completion_rate: completionRate, ...(immediate && { immediate: true }) }),
   });
 
 // 검색

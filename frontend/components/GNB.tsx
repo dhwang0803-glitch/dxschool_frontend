@@ -87,8 +87,8 @@ export default function GNB() {
         <div className="w-full px-10 flex items-center h-14">
           {/* 로고 */}
           <div className="flex-1">
-            <Link href="/" className="text-white font-bold text-xl tracking-tight">
-              DX<span className="text-blue-400">VOD</span>
+            <Link href="/">
+              <img src="/logo.png" alt="Hello+" className="h-7" />
             </Link>
           </div>
 
