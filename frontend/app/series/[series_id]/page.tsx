@@ -28,6 +28,7 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   const [purchased, setPurchased] = useState(false)
   const [purchaseInfo, setPurchaseInfo] = useState<any>(null)
   const [similar, setSimilar] = useState<VOD[]>([])
+  const [visibleEpCount, setVisibleEpCount] = useState(20)
   const [wishlisted, setWishlisted] = useState(false)
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
   const [isFree, setIsFree] = useState(false)   // 전체 무료
@@ -282,10 +283,11 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
   useEffect(() => {
     async function load() {
       try {
-        const [episodesRes, progressRes, purchaseRes] = await Promise.allSettled([
+        const [episodesRes, progressRes, purchaseRes, similarRes] = await Promise.allSettled([
           getEpisodes(seriesNm),
           getProgress(seriesNm),
           getPurchaseCheck(seriesNm),
+          getSimilar(seriesNm),
         ])
 
         let loadedEpisodes: any[] = []
@@ -320,6 +322,16 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
         setPurchased(purchaseCheckOk || hasProgress || fromWatching || allFree)
         if (purchaseRes.status === 'fulfilled' && purchaseRes.value) {
           setPurchaseInfo(purchaseRes.value)
+        }
+
+        if (similarRes.status === 'fulfilled' && similarRes.value) {
+          const items = similarRes.value.items || similarRes.value
+          setSimilar((Array.isArray(items) ? items : []).map((v: any) => ({
+            series_id: v.series_id || v.series_nm,
+            asset_nm: v.asset_nm,
+            poster_url: v.poster_url,
+            score: v.score,
+          })))
         }
       } catch (e) {
         console.error('시리즈 데이터 로드 실패:', e)
@@ -537,11 +549,13 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
           </div>
         </div>
 
-        {/* 에피소드 목록 */}
+        {/* 에피소드 목록 (20개씩 더보기) */}
         <div className="mt-8">
-          <h2 className="text-white font-semibold text-base mb-3">에피소드</h2>
+          <h2 className="text-white font-semibold text-base mb-3">
+            에피소드 <span className="text-white/40 text-sm font-normal ml-1">{episodes.length}개</span>
+          </h2>
           <div className="space-y-2">
-            {episodes.map((ep: any, idx: number) => {
+            {episodes.slice(0, visibleEpCount).map((ep: any, idx: number) => {
               const epHasImage = isImageUrl(ep.poster_url)
               const epProgress = progress?.episodes?.find((e: any) => e.episode_title === ep.episode_title)
               const isPlaying = playingEpisode === ep.episode_title
@@ -596,7 +610,30 @@ export default function SeriesPage({ params }: { params: Promise<{ series_id: st
               )
             })}
           </div>
+          {visibleEpCount < episodes.length && (
+            <button
+              onClick={() => setVisibleEpCount(prev => prev + 20)}
+              className="w-full mt-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10
+                text-white/60 hover:text-white text-sm font-medium transition-colors"
+            >
+              더보기 ({visibleEpCount}/{episodes.length})
+            </button>
+          )}
         </div>
+
+        {/* 관련 콘텐츠 */}
+        {similar.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-white font-semibold text-base mb-3">관련 콘텐츠</h2>
+            <div className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {similar.map(vod => (
+                <div key={vod.series_id} className="shrink-0 w-60">
+                  <PosterCard vod={vod} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   )
