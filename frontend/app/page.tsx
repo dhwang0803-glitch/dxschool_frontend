@@ -116,26 +116,28 @@ function Top10Section({ section, userId }: { section: PersonalSection; userId?: 
 
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-4 overflow-x-auto px-6 pt-8 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {section.vods.map(vod => {
             const bgUrl = vod.backdrop_url || vod.poster_url
             const hasImage = isImageUrl(bgUrl)
             return (
               <div key={vod.series_id} className="shrink-0 flex flex-col" style={{ width: 'calc((100vw - 48px - 48px) / 3)' }}>
-                <Link href={`/series/${encodeURIComponent(vod.series_id)}`} className="group block">
-                  <div className="rounded-lg p-[1px] bg-gradient-to-b from-white/30 via-white/10 to-transparent">
-                    <div className={`w-full h-[40vw] min-h-[310px] max-h-[620px] rounded-lg overflow-hidden relative
+                <Link href={`/series/${encodeURIComponent(vod.series_id)}`} className="group block relative">
+                  {/* Rank number — 좌측 상단 살짝 이탈, italic */}
+                  {vod.rank != null && (
+                    <span className="absolute -top-3 -left-3 text-6xl font-black italic leading-none z-20
+                      text-white select-none pointer-events-none
+                      drop-shadow-[0_4px_12px_rgba(0,0,0,0.95)]">
+                      {vod.rank}
+                    </span>
+                  )}
+                  <div className="relative z-10 rounded-lg p-[1px] bg-gradient-to-b from-white/30 via-white/10 to-transparent">
+                    <div className={`w-full aspect-[2/3] rounded-lg overflow-hidden relative
                       group-hover:scale-[1.03] group-hover:brightness-110 transition-all duration-200
                       ${!hasImage ? `bg-gradient-to-b ${getFallbackGradient(vod.asset_nm)}` : ''}`}>
                       {hasImage && (
-                        <img src={bgUrl!} alt={vod.asset_nm} className="w-full h-full object-cover" />
-                      )}
-                      {/* Rank badge */}
-                      {vod.rank != null && (
-                        <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center shadow-lg">
-                          <span className="text-black text-lg font-extrabold leading-none">{vod.rank}</span>
-                        </div>
+                        <img src={bgUrl!} alt={vod.asset_nm} className="w-full h-full object-cover object-top" />
                       )}
                       {/* 추천 이유 태그 — 우측 상단 */}
                       <div className="absolute top-2 right-2">
