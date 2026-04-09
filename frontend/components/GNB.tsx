@@ -87,8 +87,54 @@ export default function GNB() {
         <div className="w-full px-10 flex items-center h-14">
           {/* 로고 */}
           <div className="flex-1">
-            <Link href="/">
-              <img src="/new_logo.png" alt="Hello+" className="h-7" />
+            <Link href="/" className="inline-block relative group">
+              <span className="relative inline-flex items-center">
+                {/* 뒤쪽 아크 (SVG만 사용) */}
+                <svg className="absolute -top-1.5 -right-0.5" width="36" height="28" viewBox="0 0 36 28" fill="none">
+                  <path
+                    d="M34 16C34 8.268 27.732 2 20 2c-4.5 0-8.5 2.1-11 5.4"
+                    stroke="url(#arcGrad)"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  <defs>
+                    <linearGradient id="arcGrad" x1="9" y1="7" x2="34" y2="16">
+                      <stop offset="0%" stopColor="#7f1d1d" />
+                      <stop offset="50%" stopColor="#dc2626" />
+                      <stop offset="100%" stopColor="#991b1b" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                {/* Hello+ 텍스트 */}
+                <span
+                  className="relative text-[22px] font-bold italic tracking-tight"
+                  style={{
+                    fontFamily: "'Georgia', 'Times New Roman', serif",
+                    background: 'linear-gradient(180deg, #ef4444 0%, #dc2626 30%, #7f1d1d 70%, #991b1b 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    textShadow: 'none',
+                    filter: 'drop-shadow(0 1px 2px rgba(220,38,38,0.3))',
+                  }}
+                >
+                  Hello
+                  <span
+                    style={{
+                      fontStyle: 'normal',
+                      fontWeight: 800,
+                      fontSize: '24px',
+                      background: 'linear-gradient(180deg, #ef4444 0%, #b91c1c 50%, #7f1d1d 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                    }}
+                  >
+                    +
+                  </span>
+                </span>
+              </span>
             </Link>
           </div>
 
