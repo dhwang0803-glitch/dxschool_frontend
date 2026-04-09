@@ -1,7 +1,7 @@
 const RELEASE_API_URL = process.env.NEXT_PUBLIC_RELEASE_API_URL || "";
 const DEV_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-function getApiUrl() {
+export function getApiUrl() {
   if (typeof window !== "undefined" && window.location.hostname.includes("release") && RELEASE_API_URL) {
     return RELEASE_API_URL;
   }

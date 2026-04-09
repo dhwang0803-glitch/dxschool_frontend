@@ -3,7 +3,12 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 
 function getWsBase() {
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const releaseApiUrl = process.env.NEXT_PUBLIC_RELEASE_API_URL || ''
+  const devApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  let apiUrl = devApiUrl
+  if (typeof window !== 'undefined' && window.location.hostname.includes('release') && releaseApiUrl) {
+    apiUrl = releaseApiUrl
+  }
   return apiUrl.replace(/^http/, 'ws')
 }
 const WS_BASE = getWsBase()
