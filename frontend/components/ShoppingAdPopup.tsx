@@ -1,6 +1,13 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { AdPopup, AdResponse, ReservationAlert } from '@/lib/useAdSocket'
+import { getApiUrl } from '@/lib/api'
+
+function resolveAdImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  return `${getApiUrl()}/${url.replace(/^\//, '')}`
+}
 
 type PopupState = 'visible' | 'minimized' | 'dismissed'
 
@@ -230,7 +237,7 @@ function LocalGovPopup({ ad, onDismiss }: { ad: AdPopup; onDismiss: (id: string)
     <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900" style={{ width: 340, maxWidth: 'calc(100vw - 32px)' }}>
       {ad.data.ad_image_url && (
         <img
-          src={ad.data.ad_image_url}
+          src={resolveAdImageUrl(ad.data.ad_image_url) || ''}
           alt={ad.data.product_name || '축제 광고'}
           className="w-full object-cover"
           style={{ height: 196 }}
