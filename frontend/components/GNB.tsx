@@ -33,6 +33,11 @@ export default function GNB() {
       }
     }
     loadNotifications()
+
+    // 시청예약 성공 시 알림 목록 즉시 갱신
+    const onRefetch = () => loadNotifications()
+    window.addEventListener('refetch-notifications', onRefetch)
+    return () => window.removeEventListener('refetch-notifications', onRefetch)
   }, [])
 
   // 검색 디바운스

@@ -79,6 +79,8 @@ export default function ShoppingAdPopup({
       const msg = lastResponse.error || lastResponse.message || '처리되었습니다'
       setToast({ message: msg })
       if (!lastResponse.error && lastResponse.vod_id) {
+        // 시청예약 성공 → GNB 알림 목록 즉시 갱신 트리거
+        window.dispatchEvent(new Event('refetch-notifications'))
         setTimeout(() => {
           setItems((prev) => prev.filter((i) => i.ad.vod_id !== lastResponse.vod_id))
           onRemove(lastResponse.vod_id!)
