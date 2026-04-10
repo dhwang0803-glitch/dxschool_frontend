@@ -90,7 +90,7 @@ export function useAdSocket(userId: string | null) {
       wsRef.current = null
       if (retriesRef.current < MAX_RETRIES) {
         retriesRef.current++
-        const delay = Math.min(3000 * Math.pow(2, retriesRef.current - 1), 30000)
+        const delay = Math.min(5000 * Math.pow(2, retriesRef.current - 1), 30000)
         reconnectTimer.current = setTimeout(connect, delay)
       }
     }
