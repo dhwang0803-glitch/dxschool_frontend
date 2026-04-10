@@ -30,7 +30,7 @@ export default function ShoppingAdPopup({
   ads, lastResponse, lastAlert, onAction, onRemove, onClearResponse, onClearAlert,
 }: Props) {
   const [items, setItems] = useState<AdItem[]>([])
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; imageUrl?: string } | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const autoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
@@ -77,7 +77,7 @@ export default function ShoppingAdPopup({
     if (!lastResponse) return
     if (lastResponse.action === 'reserve_watch') {
       const msg = lastResponse.error || lastResponse.message || '처리되었습니다'
-      setToast(msg)
+      setToast({ message: msg })
       if (!lastResponse.error && lastResponse.vod_id) {
         setTimeout(() => {
           setItems((prev) => prev.filter((i) => i.ad.vod_id !== lastResponse.vod_id))
@@ -89,9 +89,14 @@ export default function ShoppingAdPopup({
   }, [lastResponse, onRemove, onClearResponse])
 
   // 시청예약 알림
+  const SEASONAL_MARKET_LOGO = 'https://objectstorage.ap-chuncheon-1.oraclecloud.com/n/axwfwmzcuzo3/b/vod-posters/o/logos%2Fseasonal_market.jpg'
+
   useEffect(() => {
     if (!lastAlert) return
-    setToast(lastAlert.message)
+    setToast({
+      message: lastAlert.message,
+      imageUrl: lastAlert.channel === 25 ? SEASONAL_MARKET_LOGO : undefined,
+    })
     onClearAlert()
   }, [lastAlert, onClearAlert])
 
@@ -171,10 +176,13 @@ export default function ShoppingAdPopup({
     <>
       {/* 토스트 알림 */}
       {toast && (
-        <div className={`${pos} top-4 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-lg
+        <div className={`${pos} top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 px-4 py-2 rounded-lg
           bg-white/95 text-gray-900 text-sm font-medium shadow-lg
           animate-[fadeIn_0.2s_ease-out]`}>
-          {toast}
+          {toast.imageUrl && (
+            <img src={toast.imageUrl} alt="" className="w-8 h-8 rounded-md object-cover shrink-0" />
+          )}
+          <span>{toast.message}</span>
         </div>
       )}
 
