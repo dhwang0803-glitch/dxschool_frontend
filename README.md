@@ -2,6 +2,10 @@
 
 > 하이브리드 VOD 추천 + 영상 인식 맥락 광고를 제공하는 IPTV 시청자 인터페이스.
 
+**5인 팀 (2026.02–04)**
+
+담당: **조장(PM) · 기획 · 풀스택** — 프로젝트 기획·PM, 프론트엔드 UI/UX 설계, Figma MCP 연동 자연어 UI 디자인, Playwright E2E 테스트
+
 [![Portfolio](https://img.shields.io/badge/Portfolio-dhwang0803--glitch.vercel.app-000000?style=flat-square&logo=vercel&logoColor=white)](https://dhwang0803-glitch.vercel.app/projects/lg-hellovision-vod)
 [![Backend Repo](https://img.shields.io/badge/Backend_Repo-vod__recommend__system-181717?style=flat-square&logo=github)](https://github.com/dhwang0803-glitch/vod_recommend_system)
 
